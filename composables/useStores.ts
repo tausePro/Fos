@@ -4,6 +4,7 @@ export const useStores = () => {
   const focusStore = useFocusStore()
   const settingsStore = useSettingsStore()
   const reviewsStore = useReviewsStore()
+  const analyticsStore = useAnalyticsStore()
 
   const initializeStores = async () => {
     try {
@@ -22,6 +23,9 @@ export const useStores = () => {
       await reviewsStore.loadReviews()
       console.log('Reviews store initialized')
       
+      // Analytics store doesn't need initialization (computed properties)
+      console.log('Analytics store ready')
+      
       console.log('All stores initialized successfully')
     } catch (error) {
       console.error('Error initializing stores:', error)
@@ -33,6 +37,7 @@ export const useStores = () => {
     focusStore,
     settingsStore,
     reviewsStore,
+    analyticsStore,
     initializeStores
   }
 }

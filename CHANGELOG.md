@@ -5,6 +5,26 @@ All notable changes to Felipe OS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.0] - 2025-01-22
+
+### Added - Fase 2: App Nativa macOS
+- **Migración completa a Tauri**: Aplicación nativa de macOS funcional
+- **Configuración Tauri**: Setup completo con Rust backend y frontend Nuxt 3
+- **Bundle nativo**: Generación de .app bundle para distribución en macOS
+- **Comandos Tauri básicos**: get_app_version, show_main_window, hide_main_window
+- **Comportamiento nativo**: Ventana se oculta al cerrar en lugar de terminar la app
+
+### Technical
+- Tauri v2.9.5 con Rust backend
+- Integración con frontend Nuxt 3 existente usando archivos estáticos
+- Configuración de dependencias para funcionalidades nativas futuras
+- Estructura de proyecto preparada para system tray, notificaciones y shortcuts
+
+### Infrastructure
+- Configuración completa de build para macOS
+- Metadatos de aplicación y bundle correctos
+- Preparación para distribución y code signing
+
 ## [0.0.2] - 2025-01-22
 
 ### Fixed
@@ -65,10 +85,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Planned
-- Native macOS application with Tauri
-- Menu bar integration for persistent access
-- Native macOS notifications and shortcuts
-- AI productivity coaching integration
-- Music integration for focus sessions
-- Advanced analytics and insights
+### Planned - Fase 2 Continuación
+- System Tray (Menu Bar) integration con icono persistente
+- Notificaciones nativas de macOS para eventos de focus
+- Global shortcuts para control desde cualquier aplicación
+- Ventana flotante durante modo enfoque
+- Auto-launch con macOS
+- Sincronización de datos entre versión web y nativa
+- Integración completa con APIs nativas de macOS

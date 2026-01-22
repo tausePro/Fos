@@ -1,9 +1,11 @@
 import { defineStore } from 'pinia'
 import type { UserSettings } from '~/types'
+import { StorageManager, DataRecovery, ErrorNotification, SessionFallback } from '~/utils/errorHandling'
 
 interface SettingsState extends UserSettings {
   loading: boolean
   error: string | null
+  usingFallback: boolean
 }
 
 const DEFAULT_SETTINGS: UserSettings = {
@@ -17,7 +19,8 @@ export const useSettingsStore = defineStore('settings', {
   state: (): SettingsState => ({
     ...DEFAULT_SETTINGS,
     loading: false,
-    error: null
+    error: null,
+    usingFallback: false
   }),
 
   getters: {
@@ -105,26 +108,65 @@ export const useSettingsStore = defineStore('settings', {
     async initializeStore() {
       this.loading = true
       this.error = null
+      this.usingFallback = false
       
       try {
         if (process.client) {
           const storedSettings = localStorage.getItem('felipe-os-settings')
           
           if (storedSettings) {
-            const parsed = JSON.parse(storedSettings)
-            
-            // Merge with defaults to handle new settings
-            this.workStartTime = parsed.workStartTime || DEFAULT_SETTINGS.workStartTime
-            this.workEndTime = parsed.workEndTime || DEFAULT_SETTINGS.workEndTime
-            this.weekendBlocking = parsed.weekendBlocking ?? DEFAULT_SETTINGS.weekendBlocking
-            this.cellPhoneMode = parsed.cellPhoneMode ?? DEFAULT_SETTINGS.cellPhoneMode
+            try {
+              const rawData = JSON.parse(storedSettings)
+              const recovery = DataRecovery.validateSettings(rawData)
+              
+              if (recovery.success && recovery.recoveredData) {
+                // Apply recovered settings
+                Object.assign(this, recovery.recoveredData)
+                
+                if (recovery.warnings?.length) {
+                  console.warn('Settings recovery warnings:', recovery.warnings)
+                  ErrorNotification.show({
+                    type: 'data_corruption',
+                    message: `Configuración recuperada con ${recovery.warnings.length} correcciones`,
+                    recoverable: true
+                  }, 'Settings Store')
+                }
+              } else {
+                console.error('Failed to recover settings:', recovery.errors)
+                Object.assign(this, DEFAULT_SETTINGS)
+              }
+            } catch (parseError) {
+              console.error('Failed to parse settings:', parseError)
+              Object.assign(this, DEFAULT_SETTINGS)
+              ErrorNotification.show({
+                type: 'data_corruption',
+                message: 'Configuración corrupta, usando valores por defecto',
+                recoverable: true
+              }, 'Settings Store')
+            }
+          } else {
+            // No settings found, use defaults
+            Object.assign(this, DEFAULT_SETTINGS)
           }
         }
       } catch (error) {
         console.error('Error loading settings:', error)
         this.error = 'Failed to load settings'
-        // Use defaults on error
-        Object.assign(this, DEFAULT_SETTINGS)
+        
+        // Try session fallback
+        if (SessionFallback.has('felipe-os-settings')) {
+          const fallbackSettings = SessionFallback.get('felipe-os-settings')
+          Object.assign(this, fallbackSettings)
+          this.usingFallback = true
+        } else {
+          Object.assign(this, DEFAULT_SETTINGS)
+        }
+        
+        ErrorNotification.show({
+          type: 'access_denied',
+          message: 'Error al cargar configuración, usando valores por defecto',
+          recoverable: true
+        }, 'Settings Store')
       } finally {
         this.loading = false
       }
@@ -141,12 +183,40 @@ export const useSettingsStore = defineStore('settings', {
             cellPhoneMode: this.cellPhoneMode
           }
           
-          localStorage.setItem('felipe-os-settings', JSON.stringify(settings))
-          this.error = null
+          const saveResult = await StorageManager.saveWithQuotaCheck('felipe-os-settings', settings)
+          
+          if (saveResult.success) {
+            this.error = null
+            this.usingFallback = false
+          } else {
+            this.error = saveResult.error?.message || 'Error al guardar configuración'
+            
+            // Save to session fallback
+            SessionFallback.set('felipe-os-settings', settings)
+            this.usingFallback = true
+            
+            ErrorNotification.show(saveResult.error!, 'Settings Store')
+          }
         }
       } catch (error) {
         console.error('Error saving settings:', error)
         this.error = 'Failed to save settings'
+        
+        // Save to session fallback
+        const settings: UserSettings = {
+          workStartTime: this.workStartTime,
+          workEndTime: this.workEndTime,
+          weekendBlocking: this.weekendBlocking,
+          cellPhoneMode: this.cellPhoneMode
+        }
+        SessionFallback.set('felipe-os-settings', settings)
+        this.usingFallback = true
+        
+        ErrorNotification.show({
+          type: 'unknown',
+          message: `Error al guardar configuración: ${error}`,
+          recoverable: true
+        }, 'Settings Store')
       }
     },
 
@@ -310,6 +380,46 @@ export const useSettingsStore = defineStore('settings', {
       }
       
       return { isValid: true }
+    },
+
+    // Retry saving with fallback recovery
+    async retrySave(): Promise<{ success: boolean; message: string }> {
+      if (this.usingFallback) {
+        try {
+          const settings: UserSettings = {
+            workStartTime: this.workStartTime,
+            workEndTime: this.workEndTime,
+            weekendBlocking: this.weekendBlocking,
+            cellPhoneMode: this.cellPhoneMode
+          }
+          
+          const saveResult = await StorageManager.saveWithQuotaCheck('felipe-os-settings', settings)
+          
+          if (saveResult.success) {
+            this.usingFallback = false
+            this.error = null
+            return {
+              success: true,
+              message: 'Configuración sincronizada exitosamente'
+            }
+          } else {
+            return {
+              success: false,
+              message: saveResult.error?.message || 'No se pudo sincronizar la configuración'
+            }
+          }
+        } catch (error) {
+          return {
+            success: false,
+            message: `Error al reintentar guardado: ${error}`
+          }
+        }
+      } else {
+        return {
+          success: true,
+          message: 'La configuración ya está sincronizada'
+        }
+      }
     }
   }
 })

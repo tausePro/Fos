@@ -3,18 +3,23 @@ import type { Block, Category } from '~/types'
 import { VALIDATION_RULES } from '~/types'
 import { validateBlock, validateBlockWithPriority } from '~/utils/validationHelpers'
 import { getCurrentDate } from '~/utils/timeHelpers'
+import { StorageManager, DataRecovery, ErrorNotification, SessionFallback } from '~/utils/errorHandling'
 
 interface BlocksState {
   blocks: Block[]
   loading: boolean
   error: string | null
+  usingFallback: boolean
+  lastSyncTime: string | null
 }
 
 export const useBlocksStore = defineStore('blocks', {
   state: (): BlocksState => ({
     blocks: [],
     loading: false,
-    error: null
+    error: null,
+    usingFallback: false,
+    lastSyncTime: null
   }),
 
   getters: {
@@ -109,29 +114,96 @@ export const useBlocksStore = defineStore('blocks', {
     // Initialize store with data from localStorage
     async initializeStore() {
       console.log('Initializing blocks store...')
+      const { startLoading } = useLoading()
+      const loading = startLoading('blocks-init', 'Cargando bloques...')
+      
       this.loading = true
       this.error = null
+      this.usingFallback = false
       
       try {
-        // Check if we're in the browser
         if (process.client) {
           console.log('Client-side, loading from localStorage')
+          
+          // Check storage quota first
+          loading.updateMessage('Verificando espacio de almacenamiento...')
+          const quota = await StorageManager.checkStorageQuota()
+          console.log('Storage quota:', quota)
+          
+          if (quota.percentage > 90) {
+            console.warn('Storage nearly full, attempting cleanup...')
+            loading.updateMessage('Limpiando datos antiguos...')
+            const cleanup = await StorageManager.cleanupOldData()
+            if (cleanup.success) {
+              console.log(`Cleaned up ${cleanup.cleanedItems} items, freed ${cleanup.freedSpace} bytes`)
+            }
+          }
+          
+          loading.updateMessage('Cargando datos de bloques...')
           const storedBlocks = localStorage.getItem('felipe-os-blocks')
           
           if (storedBlocks) {
-            this.blocks = JSON.parse(storedBlocks)
-            console.log('Loaded blocks from storage:', this.blocks.length)
+            try {
+              const rawData = JSON.parse(storedBlocks)
+              loading.updateMessage('Validando datos...')
+              const recovery = DataRecovery.validateBlocks(rawData)
+              
+              if (recovery.success) {
+                this.blocks = recovery.recoveredData || []
+                console.log('Loaded blocks from storage:', this.blocks.length)
+                
+                if (recovery.warnings?.length) {
+                  console.warn('Data recovery warnings:', recovery.warnings)
+                  ErrorNotification.show({
+                    type: 'data_corruption',
+                    message: `Se recuperaron ${this.blocks.length} bloques con ${recovery.warnings.length} advertencias`,
+                    recoverable: true
+                  }, 'Blocks Store')
+                }
+              } else {
+                console.error('Failed to recover blocks data:', recovery.errors)
+                this.error = 'Error al recuperar datos de bloques'
+                this.blocks = []
+              }
+            } catch (parseError) {
+              console.error('Failed to parse blocks data:', parseError)
+              ErrorNotification.show({
+                type: 'data_corruption',
+                message: 'Datos de bloques corruptos, iniciando con datos vacíos',
+                recoverable: false
+              }, 'Blocks Store')
+              this.blocks = []
+            }
           } else {
             console.log('No blocks found in storage')
+            this.blocks = []
           }
+          
+          this.lastSyncTime = new Date().toISOString()
         } else {
           console.log('Server-side, skipping localStorage')
         }
       } catch (error) {
         console.error('Error loading blocks from storage:', error)
         this.error = 'Failed to load blocks from storage'
+        
+        // Try to use session fallback
+        if (SessionFallback.has('felipe-os-blocks')) {
+          console.log('Using session fallback data')
+          this.blocks = SessionFallback.get('felipe-os-blocks') || []
+          this.usingFallback = true
+        } else {
+          this.blocks = []
+        }
+        
+        ErrorNotification.show({
+          type: 'access_denied',
+          message: 'No se puede acceder al almacenamiento, usando datos de sesión',
+          recoverable: true
+        }, 'Blocks Store')
       } finally {
         this.loading = false
+        loading.finish()
         console.log('Blocks store initialized, total blocks:', this.blocks.length)
       }
     },
@@ -141,12 +213,38 @@ export const useBlocksStore = defineStore('blocks', {
       try {
         if (process.client) {
           console.log('Saving blocks to storage:', this.blocks.length)
-          localStorage.setItem('felipe-os-blocks', JSON.stringify(this.blocks))
-          console.log('Blocks saved successfully')
+          
+          const saveResult = await StorageManager.saveWithQuotaCheck('felipe-os-blocks', this.blocks)
+          
+          if (saveResult.success) {
+            console.log('Blocks saved successfully')
+            this.lastSyncTime = new Date().toISOString()
+            this.error = null
+            this.usingFallback = false
+          } else {
+            console.error('Failed to save blocks:', saveResult.error)
+            this.error = saveResult.error?.message || 'Error al guardar bloques'
+            
+            // Save to session fallback
+            SessionFallback.set('felipe-os-blocks', this.blocks)
+            this.usingFallback = true
+            
+            ErrorNotification.show(saveResult.error!, 'Blocks Store')
+          }
         }
       } catch (error) {
         console.error('Error saving blocks to storage:', error)
         this.error = 'Failed to save blocks to storage'
+        
+        // Always save to session fallback as last resort
+        SessionFallback.set('felipe-os-blocks', this.blocks)
+        this.usingFallback = true
+        
+        ErrorNotification.show({
+          type: 'unknown',
+          message: `Error inesperado al guardar: ${error}`,
+          recoverable: true
+        }, 'Blocks Store')
       }
     },
 
@@ -352,6 +450,136 @@ export const useBlocksStore = defineStore('blocks', {
     // Export blocks for backup
     exportBlocks(): Block[] {
       return [...this.blocks]
+    },
+
+    // Get storage status for user information
+    async getStorageStatus(): Promise<{
+      quota: { available: number; used: number; percentage: number }
+      usingFallback: boolean
+      lastSync: string | null
+      canSave: boolean
+    }> {
+      const quota = await StorageManager.checkStorageQuota()
+      return {
+        quota,
+        usingFallback: this.usingFallback,
+        lastSync: this.lastSyncTime,
+        canSave: quota.percentage < 95
+      }
+    },
+
+    // Force cleanup of old data
+    async forceCleanup(): Promise<{ success: boolean; message: string }> {
+      try {
+        const cleanup = await StorageManager.cleanupOldData()
+        if (cleanup.success) {
+          return {
+            success: true,
+            message: `Limpieza completada: ${cleanup.cleanedItems} elementos eliminados, ${Math.round(cleanup.freedSpace / 1024)}KB liberados`
+          }
+        } else {
+          return {
+            success: false,
+            message: 'No se pudo completar la limpieza automática'
+          }
+        }
+      } catch (error) {
+        return {
+          success: false,
+          message: `Error durante la limpieza: ${error}`
+        }
+      }
+    },
+
+    // Retry saving with fallback options
+    async retrySave(): Promise<{ success: boolean; message: string }> {
+      if (this.usingFallback) {
+        try {
+          // Try to save from session fallback to localStorage
+          const saveResult = await StorageManager.saveWithQuotaCheck('felipe-os-blocks', this.blocks)
+          
+          if (saveResult.success) {
+            this.usingFallback = false
+            this.lastSyncTime = new Date().toISOString()
+            this.error = null
+            return {
+              success: true,
+              message: 'Datos sincronizados exitosamente con el almacenamiento local'
+            }
+          } else {
+            return {
+              success: false,
+              message: saveResult.error?.message || 'No se pudo sincronizar con el almacenamiento local'
+            }
+          }
+        } catch (error) {
+          return {
+            success: false,
+            message: `Error al reintentar guardado: ${error}`
+          }
+        }
+      } else {
+        return {
+          success: true,
+          message: 'Los datos ya están sincronizados'
+        }
+      }
+    },
+
+    // Validate current data integrity
+    async validateDataIntegrity(): Promise<{ isValid: boolean; issues: string[]; fixed: number }> {
+      const issues: string[] = []
+      let fixed = 0
+
+      // Check for duplicate IDs
+      const ids = new Set()
+      const duplicates: Block[] = []
+      
+      for (const block of this.blocks) {
+        if (ids.has(block.id)) {
+          duplicates.push(block)
+        } else {
+          ids.add(block.id)
+        }
+      }
+
+      if (duplicates.length > 0) {
+        issues.push(`${duplicates.length} bloques duplicados encontrados`)
+        // Remove duplicates
+        this.blocks = this.blocks.filter((block, index, arr) => 
+          arr.findIndex(b => b.id === block.id) === index
+        )
+        fixed += duplicates.length
+      }
+
+      // Check for invalid dates
+      const invalidDates = this.blocks.filter(block => 
+        !/^\d{4}-\d{2}-\d{2}$/.test(block.date)
+      )
+
+      if (invalidDates.length > 0) {
+        issues.push(`${invalidDates.length} bloques con fechas inválidas`)
+      }
+
+      // Check for invalid times
+      const invalidTimes = this.blocks.filter(block => 
+        !/^\d{2}:\d{2}$/.test(block.startTime) || !/^\d{2}:\d{2}$/.test(block.endTime)
+      )
+
+      if (invalidTimes.length > 0) {
+        issues.push(`${invalidTimes.length} bloques con horarios inválidos`)
+      }
+
+      // Save if we fixed anything
+      if (fixed > 0) {
+        await this.saveToStorage()
+      }
+
+      return {
+        isValid: issues.length === 0,
+        issues,
+        fixed
+      }
     }
   }
 })

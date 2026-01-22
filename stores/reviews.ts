@@ -1,12 +1,15 @@
 import { defineStore } from 'pinia'
 import type { ReviewEntry } from '~/types'
 import { getCurrentDate } from '~/utils/timeHelpers'
+import { StorageManager, DataRecovery, ErrorNotification, SessionFallback } from '~/utils/errorHandling'
 
 export const useReviewsStore = defineStore('reviews', () => {
   // State
   const reviews = ref<ReviewEntry[]>([])
   const showNightlyReview = ref(false)
   const hasCompletedTodaysReview = ref(false)
+  const usingFallback = ref(false)
+  const error = ref<string | null>(null)
 
   // Getters
   const getTodaysReview = computed(() => {
@@ -74,18 +77,63 @@ export const useReviewsStore = defineStore('reviews', () => {
       if (process.client) {
         const stored = localStorage.getItem('felipe-os-reviews')
         if (stored) {
-          const parsedReviews = JSON.parse(stored)
-          reviews.value = Array.isArray(parsedReviews) ? parsedReviews : []
+          try {
+            const rawData = JSON.parse(stored)
+            const recovery = DataRecovery.validateReviews(rawData)
+            
+            if (recovery.success) {
+              reviews.value = recovery.recoveredData || []
+              
+              if (recovery.warnings?.length) {
+                console.warn('Reviews recovery warnings:', recovery.warnings)
+                ErrorNotification.show({
+                  type: 'data_corruption',
+                  message: `Se recuperaron ${reviews.value.length} revisiones con ${recovery.warnings.length} correcciones`,
+                  recoverable: true
+                }, 'Reviews Store')
+              }
+            } else {
+              console.error('Failed to recover reviews:', recovery.errors)
+              reviews.value = []
+              error.value = 'Error al recuperar revisiones'
+            }
+          } catch (parseError) {
+            console.error('Failed to parse reviews:', parseError)
+            reviews.value = []
+            ErrorNotification.show({
+              type: 'data_corruption',
+              message: 'Datos de revisiones corruptos, iniciando vacío',
+              recoverable: true
+            }, 'Reviews Store')
+          }
+        } else {
+          reviews.value = []
         }
         
         // Check if today's review is completed
         const today = getCurrentDate()
         const todaysReview = reviews.value.find(r => r.date === today)
         hasCompletedTodaysReview.value = !!todaysReview
+        usingFallback.value = false
+        error.value = null
       }
-    } catch (error) {
-      console.error('Error loading reviews:', error)
-      reviews.value = []
+    } catch (loadError) {
+      console.error('Error loading reviews:', loadError)
+      error.value = 'Error al cargar revisiones'
+      
+      // Try session fallback
+      if (SessionFallback.has('felipe-os-reviews')) {
+        reviews.value = SessionFallback.get('felipe-os-reviews') || []
+        usingFallback.value = true
+      } else {
+        reviews.value = []
+      }
+      
+      ErrorNotification.show({
+        type: 'access_denied',
+        message: 'Error al cargar revisiones, usando datos de sesión',
+        recoverable: true
+      }, 'Reviews Store')
     }
   }
 
@@ -104,21 +152,49 @@ export const useReviewsStore = defineStore('reviews', () => {
         // Sort by date (newest first)
         reviews.value.sort((a, b) => b.date.localeCompare(a.date))
 
-        // Save to localStorage
-        localStorage.setItem('felipe-os-reviews', JSON.stringify(reviews.value))
+        // Save to localStorage with error handling
+        const saveResult = await StorageManager.saveWithQuotaCheck('felipe-os-reviews', reviews.value)
         
-        // Mark today's review as completed
-        if (review.date === getCurrentDate()) {
-          hasCompletedTodaysReview.value = true
-          showNightlyReview.value = false
+        if (saveResult.success) {
+          // Mark today's review as completed
+          if (review.date === getCurrentDate()) {
+            hasCompletedTodaysReview.value = true
+            showNightlyReview.value = false
+          }
+          
+          usingFallback.value = false
+          error.value = null
+          return { success: true }
+        } else {
+          // Save to session fallback
+          SessionFallback.set('felipe-os-reviews', reviews.value)
+          usingFallback.value = true
+          error.value = saveResult.error?.message || 'Error al guardar revisión'
+          
+          ErrorNotification.show(saveResult.error!, 'Reviews Store')
+          
+          return { 
+            success: false, 
+            error: saveResult.error?.message || 'Error al guardar la revisión' 
+          }
         }
-
-        return { success: true }
       }
       
       return { success: false, error: 'Not in client environment' }
-    } catch (error) {
-      console.error('Error saving review:', error)
+    } catch (saveError) {
+      console.error('Error saving review:', saveError)
+      error.value = 'Error inesperado al guardar revisión'
+      
+      // Always save to session fallback
+      SessionFallback.set('felipe-os-reviews', reviews.value)
+      usingFallback.value = true
+      
+      ErrorNotification.show({
+        type: 'unknown',
+        message: `Error al guardar revisión: ${saveError}`,
+        recoverable: true
+      }, 'Reviews Store')
+      
       return { success: false, error: 'Error al guardar la revisión' }
     }
   }
@@ -176,6 +252,8 @@ export const useReviewsStore = defineStore('reviews', () => {
     reviews: readonly(reviews),
     showNightlyReview: readonly(showNightlyReview),
     hasCompletedTodaysReview: readonly(hasCompletedTodaysReview),
+    usingFallback: readonly(usingFallback),
+    error: readonly(error),
     
     // Getters
     getTodaysReview,

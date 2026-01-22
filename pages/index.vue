@@ -1,37 +1,49 @@
 <template>
   <div class="app-container">
-    <!-- Header -->
-    <AppHeader />
+    <!-- Loading State -->
+    <div v-if="isInitializing" class="loading-container">
+      <LoadingSpinner 
+        size="large" 
+        message="Inicializando Felipe OS..." 
+        variant="inline"
+      />
+    </div>
     
-    <!-- Main Content -->
-    <main class="main-content">
-      <!-- One Thing Section -->
-      <section class="content-section">
-        <DailyPriority />
-      </section>
+    <!-- Main App Content -->
+    <div v-else>
+      <!-- Header -->
+      <AppHeader />
       
-      <!-- Sacred Blocks Section -->
-      <section class="content-section">
-        <SacredBlocks />
-      </section>
+      <!-- Main Content -->
+      <main class="main-content">
+        <!-- One Thing Section -->
+        <section class="content-section">
+          <DailyPriority />
+        </section>
+        
+        <!-- Sacred Blocks Section -->
+        <section class="content-section">
+          <SacredBlocks />
+        </section>
+        
+        <!-- Action Buttons -->
+        <section class="content-section">
+          <ActionButtons />
+        </section>
+      </main>
       
-      <!-- Action Buttons -->
-      <section class="content-section">
-        <ActionButtons />
-      </section>
-    </main>
-    
-    <!-- Focus Mode Overlay -->
-    <FocusMode v-if="focusStore.isFocusMode" />
-    
-    <!-- Nightly Review Overlay -->
-    <NightlyReview
-      v-if="reviewsStore.showNightlyReview"
-      :todays-blocks="todaysBlocks"
-      :todays-priority="todaysPriority"
-      @review-completed="handleReviewCompleted"
-      @review-skipped="handleReviewSkipped"
-    />
+      <!-- Focus Mode Overlay -->
+      <FocusMode v-if="focusStore.isFocusMode" />
+      
+      <!-- Nightly Review Overlay -->
+      <NightlyReview
+        v-if="reviewsStore.showNightlyReview"
+        :todays-blocks="todaysBlocks"
+        :todays-priority="todaysPriority"
+        @review-completed="handleReviewCompleted"
+        @review-skipped="handleReviewSkipped"
+      />
+    </div>
   </div>
 </template>
 
@@ -47,10 +59,13 @@ useHead({
   ]
 })
 
-// Initialize stores using composable
-const { focusStore, blocksStore, reviewsStore, initializeStores } = useStores()
+// Stores (already initialized by app.vue)
+const { focusStore, blocksStore, reviewsStore } = useStores()
 
-// Get today's data
+// Loading state
+const isInitializing = ref(true)
+
+// Get today's data (computed to be reactive)
 const today = getCurrentDate()
 const todaysBlocks = computed(() => blocksStore.getBlocksByDate(today))
 const todaysPriority = computed(() => {
@@ -83,11 +98,26 @@ function handleReviewSkipped() {
   reviewsStore.dismissNightlyReview()
 }
 
-// Initialize stores on mount
+// Wait for stores to be ready
 onMounted(async () => {
-  console.log('Page mounted, initializing stores...')
-  await initializeStores()
-  console.log('Stores initialization complete')
+  // Wait a bit to ensure stores are initialized
+  await nextTick()
+  
+  // Check if stores are ready
+  const checkStoresReady = () => {
+    return !blocksStore.loading && !reviewsStore.error
+  }
+  
+  // Wait for stores to be ready or timeout after 3 seconds
+  const maxWait = 3000
+  const startTime = Date.now()
+  
+  while (!checkStoresReady() && (Date.now() - startTime) < maxWait) {
+    await new Promise(resolve => setTimeout(resolve, 100))
+  }
+  
+  isInitializing.value = false
+  console.log('Page ready, stores initialized')
 })
 </script>
 
@@ -95,6 +125,14 @@ onMounted(async () => {
 .app-container {
   min-height: 100vh;
   background: #f8fafc;
+}
+
+.loading-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 2rem;
 }
 
 .main-content {
@@ -130,5 +168,15 @@ onMounted(async () => {
   .content-section {
     margin-bottom: 1rem;
   }
+}
+
+/* Performance optimizations */
+.content-section {
+  contain: layout style;
+}
+
+/* Reduce layout shifts */
+.app-container {
+  contain: layout;
 }
 </style>

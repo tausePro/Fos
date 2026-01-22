@@ -72,13 +72,13 @@
       </NuxtLink>
       
       <!-- Settings -->
-      <button @click="showSettings = true" class="action-btn settings-btn">
+      <NuxtLink to="/settings" class="action-btn settings-btn">
         <div class="btn-icon">⚙️</div>
         <div class="btn-label">
           <div class="btn-title">Configuración</div>
           <div class="btn-status">Ajustes</div>
         </div>
-      </button>
+      </NuxtLink>
     </div>
     
     <!-- Status Message -->
@@ -88,14 +88,6 @@
         <div class="status-text">{{ statusMessage }}</div>
       </div>
     </div>
-    
-    <!-- Settings Modal -->
-    <Teleport to="body">
-      <SettingsModal
-        v-if="showSettings"
-        @close="showSettings = false"
-      />
-    </Teleport>
   </div>
 </template>
 
@@ -106,7 +98,7 @@ const blocksStore = useBlocksStore()
 const settingsStore = useSettingsStore()
 
 // Reactive state
-const showSettings = ref(false)
+// (removed showSettings as we now navigate to /settings page)
 
 // Computed properties
 const canStartDay = computed(() => {

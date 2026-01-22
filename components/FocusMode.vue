@@ -145,8 +145,8 @@ let timeInterval: NodeJS.Timeout | null = null
 
 onMounted(() => {
   timeInterval = setInterval(() => {
-    // Force reactivity update
-    focusStore.$patch({})
+    // Update timestamp to trigger reactivity
+    focusStore.updateTimestamp()
   }, 1000)
 })
 

@@ -10,6 +10,7 @@ interface FocusState {
   pausedAt: string | null
   totalPausedTime: number // in minutes
   cellPhoneMode: boolean
+  currentTimestamp: number // For reactivity
 }
 
 export const useFocusStore = defineStore('focus', {
@@ -20,7 +21,8 @@ export const useFocusStore = defineStore('focus', {
     isPaused: false,
     pausedAt: null,
     totalPausedTime: 0,
-    cellPhoneMode: false
+    cellPhoneMode: false,
+    currentTimestamp: Date.now()
   }),
 
   getters: {
@@ -54,10 +56,11 @@ export const useFocusStore = defineStore('focus', {
     elapsedTime: (state) => {
       if (!state.sessionStartTime) return 0
       
+      // Use reactive timestamp to ensure updates
+      const currentTime = state.currentTimestamp
       const start = new Date(`${getCurrentDate()}T${state.sessionStartTime}:00`)
-      const now = new Date()
       
-      let elapsed = Math.floor((now.getTime() - start.getTime()) / (1000 * 60)) // minutes
+      let elapsed = Math.floor((currentTime - start.getTime()) / (1000 * 60)) // minutes
       
       // Subtract paused time
       elapsed -= state.totalPausedTime
@@ -65,7 +68,7 @@ export const useFocusStore = defineStore('focus', {
       // If currently paused, don't count time since pause
       if (state.isPaused && state.pausedAt) {
         const pauseStart = new Date(`${getCurrentDate()}T${state.pausedAt}:00`)
-        const pausedMinutes = Math.floor((now.getTime() - pauseStart.getTime()) / (1000 * 60))
+        const pausedMinutes = Math.floor((currentTime - pauseStart.getTime()) / (1000 * 60))
         elapsed -= pausedMinutes
       }
       
@@ -324,6 +327,11 @@ export const useFocusStore = defineStore('focus', {
       
       const timeUntilNext = this.getTimeUntilNextBlock()
       return timeUntilNext <= 5 // Auto-start if next block is within 5 minutes
+    },
+
+    // Update current timestamp for reactivity
+    updateTimestamp(): void {
+      this.currentTimestamp = Date.now()
     }
   }
 })

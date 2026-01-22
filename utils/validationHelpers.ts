@@ -1,6 +1,7 @@
 import type { Block, DailyPriority, Category } from '~/types'
 import { VALIDATION_RULES } from '~/types'
 import { timeToMinutes, minutesToTime, calculateDurationMinutes } from '~/utils/timeHelpers'
+import { getCategoryPriority } from '~/utils/categoryHelpers'
 
 // Text validation functions
 export function validatePriorityText(text: string): { isValid: boolean; error?: string } {
@@ -254,16 +255,6 @@ export function validateBlock(
 }
 
 // LANDINGCHAT Priority Scheduling Functions
-export function getCategoryPriority(category: Category): number {
-  const priorities = {
-    'LANDINGCHAT': 1,
-    'ESTUDIO': 2,
-    'TAUSE': 3,
-    'OTRO': 4
-  }
-  return priorities[category] || 4
-}
-
 export function findConflictingBlocks(
   blocks: Block[], 
   newBlock: Omit<Block, 'id' | 'completed'>

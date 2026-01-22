@@ -3,6 +3,7 @@ export const useStores = () => {
   const blocksStore = useBlocksStore()
   const focusStore = useFocusStore()
   const settingsStore = useSettingsStore()
+  const reviewsStore = useReviewsStore()
 
   const initializeStores = async () => {
     try {
@@ -18,6 +19,9 @@ export const useStores = () => {
       await focusStore.initializeStore()
       console.log('Focus store initialized')
       
+      await reviewsStore.loadReviews()
+      console.log('Reviews store initialized')
+      
       console.log('All stores initialized successfully')
     } catch (error) {
       console.error('Error initializing stores:', error)
@@ -28,6 +32,7 @@ export const useStores = () => {
     blocksStore,
     focusStore,
     settingsStore,
+    reviewsStore,
     initializeStores
   }
 }

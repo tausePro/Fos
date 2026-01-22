@@ -53,6 +53,15 @@
         </div>
       </NuxtLink>
       
+      <!-- Reviews -->
+      <NuxtLink to="/review" class="action-btn review-btn">
+        <div class="btn-icon">🌙</div>
+        <div class="btn-label">
+          <div class="btn-title">Revisiones</div>
+          <div class="btn-status">Historial</div>
+        </div>
+      </NuxtLink>
+      
       <!-- Stats -->
       <NuxtLink to="/stats" class="action-btn stats-btn">
         <div class="btn-icon">📊</div>
@@ -352,6 +361,17 @@ async function toggleCellPhoneMode() {
 
 .week-btn:hover .btn-label .btn-title,
 .week-btn:hover .btn-label .btn-status {
+  color: white;
+}
+
+.review-btn:hover {
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  border-color: #6366f1;
+  color: white;
+}
+
+.review-btn:hover .btn-label .btn-title,
+.review-btn:hover .btn-label .btn-status {
   color: white;
 }
 

@@ -23,10 +23,22 @@
     
     <!-- Focus Mode Overlay -->
     <FocusMode v-if="focusStore.isFocusMode" />
+    
+    <!-- Nightly Review Overlay -->
+    <NightlyReview
+      v-if="reviewsStore.showNightlyReview"
+      :todays-blocks="todaysBlocks"
+      :todays-priority="todaysPriority"
+      @review-completed="handleReviewCompleted"
+      @review-skipped="handleReviewSkipped"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
+import type { ReviewEntry } from '~/types'
+import { getCurrentDate } from '~/utils/timeHelpers'
+
 // Page metadata
 useHead({
   title: 'Felipe OS - Anti-Procrastination Dashboard',
@@ -36,7 +48,40 @@ useHead({
 })
 
 // Initialize stores using composable
-const { focusStore, initializeStores } = useStores()
+const { focusStore, blocksStore, reviewsStore, initializeStores } = useStores()
+
+// Get today's data
+const today = getCurrentDate()
+const todaysBlocks = computed(() => blocksStore.getBlocksByDate(today))
+const todaysPriority = computed(() => {
+  try {
+    if (process.client) {
+      const stored = localStorage.getItem('felipe-os-priorities')
+      if (stored) {
+        const priorities = JSON.parse(stored)
+        return priorities.find((p: any) => p.date === today) || null
+      }
+    }
+  } catch (error) {
+    console.error('Error loading today\'s priority:', error)
+  }
+  return null
+})
+
+// Review handlers
+async function handleReviewCompleted(review: ReviewEntry) {
+  const result = await reviewsStore.saveReview(review)
+  
+  if (result.success) {
+    console.log('Review saved successfully')
+  } else {
+    alert(`Error al guardar la revisión: ${result.error}`)
+  }
+}
+
+function handleReviewSkipped() {
+  reviewsStore.dismissNightlyReview()
+}
 
 // Initialize stores on mount
 onMounted(async () => {

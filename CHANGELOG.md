@@ -5,6 +5,28 @@ All notable changes to Felipe OS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.2] - 2025-01-22
+
+### Fixed
+- **Temporizador en modo enfoque**: El temporizador ahora se actualiza correctamente en tiempo real
+- **Reactividad del tiempo**: Tiempo transcurrido y tiempo restante funcionan dinámicamente
+- **Barra de progreso**: Se actualiza automáticamente durante las sesiones de enfoque
+
+### Technical
+- Agregado `currentTimestamp` reactivo al FocusStore para reactividad temporal
+- Modificado getter `elapsedTime` para usar timestamp reactivo
+- Implementada acción `updateTimestamp()` para actualizaciones cada segundo
+- Mejorada la arquitectura de reactividad en el componente FocusMode
+
+### Added
+- Nightly review interface completamente funcional
+- Weekly overview con vista de 7 días y estadísticas
+- Analytics dashboard con métricas de productividad
+- Sistema completo de manejo de errores
+- Monitoreo de rendimiento y indicadores de carga
+- Página de configuraciones y diagnósticos del sistema
+- Tests de integración para funcionalidad core
+
 ## [0.0.1] - 2025-01-22
 
 ### Added
@@ -44,9 +66,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Planned
-- Nightly review interface
-- Weekly progress overview
-- Analytics dashboard
-- Native macOS application
-- AI productivity coaching
-- Music integration for focus
+- Native macOS application with Tauri
+- Menu bar integration for persistent access
+- Native macOS notifications and shortcuts
+- AI productivity coaching integration
+- Music integration for focus sessions
+- Advanced analytics and insights

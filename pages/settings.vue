@@ -105,7 +105,26 @@
         </div>
 
         <!-- System Diagnostics -->
-        <SystemDiagnostics />
+        <div class="bg-white/90 backdrop-blur-sm rounded-lg border border-gray-200 p-6">
+          <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+            <span class="mr-2">🔧</span>
+            Diagnósticos del Sistema
+          </h3>
+          
+          <!-- Test Notifications -->
+          <div class="mb-6">
+            <h4 class="font-medium text-gray-900 mb-2">Prueba de Notificaciones</h4>
+            <p class="text-sm text-gray-600 mb-3">Verifica que las notificaciones nativas funcionen correctamente</p>
+            <button
+              @click="testNotifications"
+              class="px-4 py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors"
+            >
+              Probar Notificación
+            </button>
+          </div>
+          
+          <SystemDiagnostics />
+        </div>
       </div>
 
       <!-- Data Management -->
@@ -174,6 +193,7 @@
 <script setup lang="ts">
 const { settingsStore, blocksStore, reviewsStore } = useStores()
 const { cleanupOldData } = useErrorNotifications()
+const { testNotification } = useNotifications()
 
 // Local state for form inputs
 const workStartTime = ref(settingsStore.workStartTime)
@@ -220,6 +240,17 @@ async function resetSettings() {
     await settingsStore.resetToDefaults()
     successMessage.value = 'Configuración restaurada a valores por defecto'
     setTimeout(() => { successMessage.value = '' }, 3000)
+  }
+}
+
+async function testNotifications() {
+  try {
+    await testNotification()
+    successMessage.value = 'Notificación de prueba enviada'
+    setTimeout(() => { successMessage.value = '' }, 3000)
+  } catch (error) {
+    errorMessage.value = `Error al enviar notificación: ${error.message}`
+    setTimeout(() => { errorMessage.value = '' }, 3000)
   }
 }
 

@@ -210,6 +210,16 @@ export const useFocusStore = defineStore('focus', {
       this.pausedAt = null
       this.totalPausedTime = 0
       
+      // Enviar notificación de inicio de focus
+      if (process.client) {
+        try {
+          const { notifyFocusStart } = useNotifications()
+          await notifyFocusStart(targetBlock.title)
+        } catch (error) {
+          console.error('Error enviando notificación de inicio de focus:', error)
+        }
+      }
+      
       await this.saveState()
       return { success: true }
     },
@@ -258,10 +268,22 @@ export const useFocusStore = defineStore('focus', {
         return { success: false, error: 'No active block to complete' }
       }
       
+      const elapsedMinutes = this.elapsedTime
+      
       const blocksStore = useBlocksStore()
       const result = await blocksStore.completeBlock(this.currentBlockId)
       
       if (result.success) {
+        // Enviar notificación de completado antes de salir del focus mode
+        if (process.client) {
+          try {
+            const { notifyFocusComplete } = useNotifications()
+            await notifyFocusComplete(elapsedMinutes)
+          } catch (error) {
+            console.error('Error enviando notificación de focus completado:', error)
+          }
+        }
+        
         await this.exitFocusMode()
       }
       
@@ -353,6 +375,16 @@ export const useFocusStore = defineStore('focus', {
     async startZonaRoja(): Promise<void> {
       await this.enableCellPhoneMode()
       
+      // Enviar notificación de zona roja
+      if (process.client) {
+        try {
+          const { notifyZonaRoja } = useNotifications()
+          await notifyZonaRoja()
+        } catch (error) {
+          console.error('Error enviando notificación de zona roja:', error)
+        }
+      }
+      
       // If not in focus mode, try to start it
       if (!this.isFocusMode) {
         await this.startFocus()
@@ -363,6 +395,16 @@ export const useFocusStore = defineStore('focus', {
     async takeBreak(): Promise<void> {
       if (this.isFocusMode && !this.isPaused) {
         await this.pauseSession()
+        
+        // Enviar notificación de break time
+        if (process.client) {
+          try {
+            const { notifyBreakTime } = useNotifications()
+            await notifyBreakTime()
+          } catch (error) {
+            console.error('Error enviando notificación de break time:', error)
+          }
+        }
       }
     },
 

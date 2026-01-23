@@ -37,18 +37,18 @@ Este plan de implementación convierte el MVP web existente de Felipe OS en una 
     - **Property 3: Menu Bar Termination**
     - **Validates: Requirements 2.1, 2.2, 2.3, 2.4, 2.5**
 
-- [ ] 3. Implement Native Notifications
-  - [ ] 3.1 Create NotificationManager for macOS integration
+- [x] 3. Implement Native Notifications
+  - [x] 3.1 Create NotificationManager for macOS integration
     - Request notification permissions on first launch
     - Implement native notification sending using macOS APIs
     - _Requirements: 3.5_
 
-  - [ ] 3.2 Add focus event notifications
+  - [x] 3.2 Add focus event notifications
     - Send notifications for focus start, zona roja, session completion, breaks
     - Configure appropriate priority levels and styling
     - _Requirements: 3.1, 3.2, 3.3, 3.4_
 
-  - [ ] 3.3 Write property tests for notification system
+  - [x] 3.3 Write property tests for notification system
     - **Property 4: Event-Driven Notifications**
     - **Property 5: Notification Permission Handling**
     - **Validates: Requirements 3.1, 3.2, 3.3, 3.4, 3.5**

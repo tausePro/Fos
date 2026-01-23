@@ -20,8 +20,22 @@ onMounted(async () => {
       setupAutoSync()
       syncTrayWithFocusState()
       console.log('System tray initialized with auto-sync')
+      
+      // Inicializar notificaciones
+      const { setupNotificationListeners, requestPermissions } = useNotifications()
+      setupNotificationListeners()
+      
+      // Solicitar permisos de notificación
+      try {
+        const granted = await requestPermissions()
+        console.log('Notification permissions:', granted ? 'granted' : 'denied')
+      } catch (error) {
+        console.error('Error requesting notification permissions:', error)
+      }
+      
+      console.log('Notifications initialized')
     } else {
-      console.log('Running in web mode - system tray disabled')
+      console.log('Running in web mode - system tray and native notifications disabled')
     }
     
     console.log('App initialized successfully')

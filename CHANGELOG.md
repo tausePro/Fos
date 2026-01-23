@@ -5,6 +5,37 @@ All notable changes to Felipe OS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2025-01-23
+
+### Added - System Tray Manager (Fase 2)
+- **System Tray completo**: Icono persistente en la barra de menú de macOS
+- **Menú contextual funcional**: Acciones rápidas desde el system tray
+  - Mostrar/Ocultar ventana principal
+  - Toggle Modo Enfoque
+  - Activar Zona Roja
+  - Tomar Descanso
+  - Abrir Configuración
+  - Salir de la aplicación
+- **Indicación dinámica de estado**: Tooltip actualizado según estado actual
+  - Estado Inactivo, Activo, Zona Roja, En Descanso
+- **Sincronización bidireccional**: Frontend ↔ System Tray en tiempo real
+- **Integración con Focus Store**: Cambios automáticos de estado
+- **Property-Based Tests**: Validación de correctitud con QuickCheck
+
+### Technical
+- SystemTrayManager struct en Rust con API completa
+- Composable useSystemTray.ts para integración frontend
+- Comandos Tauri: update_tray_status para comunicación
+- Event listeners para acciones del menú
+- Watchers automáticos para sincronización de estado
+- Tests unitarios y de propiedades para validación
+
+### Infrastructure
+- Configuración completa del tray icon en tauri.conf.json
+- Manejo de eventos entre Rust backend y Vue frontend
+- Arquitectura preparada para iconos dinámicos por estado
+- Sistema robusto de detección de entorno Tauri vs Web
+
 ## [0.1.0] - 2025-01-22
 
 ### Added - Fase 2: App Nativa macOS

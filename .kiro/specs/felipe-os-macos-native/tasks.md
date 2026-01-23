@@ -16,23 +16,23 @@ Este plan de implementación convierte el MVP web existente de Felipe OS en una 
   - **Property 1: Tauri Build Consistency**
   - **Validates: Requirements 1.1, 1.2, 1.3, 1.4**
 
-- [ ] 2. Implement System Tray Manager
-  - [ ] 2.1 Create basic system tray with icon
+- [x] 2. Implement System Tray Manager
+  - [x] 2.1 Create basic system tray with icon
     - Implement SystemTrayManager struct in Rust
     - Add menu bar icon that persists when main window is closed
     - _Requirements: 2.1, 2.3_
 
-  - [ ] 2.2 Add system tray menu with quick actions
+  - [x] 2.2 Add system tray menu with quick actions
     - Create dropdown menu with Focus Mode, Zona Roja, Break, Settings, Quit
     - Handle menu item click events
     - _Requirements: 2.2_
 
-  - [ ] 2.3 Implement dynamic status indication
+  - [x] 2.3 Implement dynamic status indication
     - Update menu bar icon to reflect current focus mode status
     - Add visual indicators for active sessions
     - _Requirements: 2.5_
 
-  - [ ] 2.4 Write property tests for menu bar functionality
+  - [x] 2.4 Write property tests for menu bar functionality
     - **Property 2: Menu Bar Persistence**
     - **Property 3: Menu Bar Termination**
     - **Validates: Requirements 2.1, 2.2, 2.3, 2.4, 2.5**

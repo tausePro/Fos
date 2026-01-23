@@ -332,7 +332,59 @@ export const useFocusStore = defineStore('focus', {
     // Update current timestamp for reactivity
     updateTimestamp(): void {
       this.currentTimestamp = Date.now()
+    },
+
+    // System Tray Integration Methods
+    
+    // Start focus mode (alias for system tray)
+    async startFocus(): Promise<void> {
+      const result = await this.startFocusMode()
+      if (!result.success) {
+        console.warn('Could not start focus mode:', result.error)
+      }
+    },
+
+    // Stop focus mode (alias for system tray)
+    async stopFocus(): Promise<void> {
+      await this.exitFocusMode()
+    },
+
+    // Start zona roja mode
+    async startZonaRoja(): Promise<void> {
+      await this.enableCellPhoneMode()
+      
+      // If not in focus mode, try to start it
+      if (!this.isFocusMode) {
+        await this.startFocus()
+      }
+    },
+
+    // Take a break
+    async takeBreak(): Promise<void> {
+      if (this.isFocusMode && !this.isPaused) {
+        await this.pauseSession()
+      }
+    },
+
+    // Get current status for system tray
+    getCurrentTrayStatus(): 'Inactive' | 'Active' | 'ZonaRoja' | 'Break' {
+      if (this.cellPhoneMode || this.isInRedZone) {
+        return 'ZonaRoja'
+      } else if (this.isPaused) {
+        return 'Break'
+      } else if (this.isFocusMode) {
+        return 'Active'
+      } else {
+        return 'Inactive'
+      }
     }
+  },
+
+  // Computed properties for easier access
+  computed: {
+    isActive: (state) => state.isFocusMode,
+    isZonaRoja: (state) => state.cellPhoneMode || state.isInRedZone,
+    isBreak: (state) => state.isPaused
   }
 })
 

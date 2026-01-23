@@ -1,4 +1,8 @@
 use tauri::Manager;
+use std::sync::{Arc, Mutex};
+
+mod system_tray;
+pub use system_tray::{SystemTrayManager, FocusStatus, update_tray_status};
 
 // Comandos Tauri que expondremos al frontend
 #[tauri::command]
@@ -33,6 +37,22 @@ pub fn run() {
             // Configuración inicial de la aplicación
             log::info!("Felipe OS iniciando...");
             
+            // Inicializar System Tray Manager
+            let mut tray_manager = SystemTrayManager::new(app.handle().clone());
+            
+            match tray_manager.initialize() {
+                Ok(()) => {
+                    log::info!("System Tray inicializado correctamente");
+                    
+                    // Guardar el tray manager en el estado de la app
+                    app.manage(Arc::new(Mutex::new(tray_manager)));
+                }
+                Err(e) => {
+                    log::error!("Error inicializando System Tray: {}", e);
+                    // Continuar sin system tray si hay error
+                }
+            }
+            
             // Configurar la ventana principal
             if let Some(window) = app.get_webview_window("main") {
                 // Configurar el comportamiento de cierre
@@ -52,7 +72,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_app_version,
             show_main_window,
-            hide_main_window
+            hide_main_window,
+            update_tray_status
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

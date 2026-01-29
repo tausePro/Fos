@@ -94,7 +94,7 @@ This implementation plan breaks down Felipe OS into discrete coding tasks that b
     - Implement conflict resolution for LANDINGCHAT blocks
     - _Requirements: 3.6, 3.7_
 
-  - [ ]* 5.3 Write property test for LANDINGCHAT priority
+  - [x]* 5.3 Write property test for LANDINGCHAT priority
     - **Property 6: LANDINGCHAT Priority Scheduling**
     - **Validates: Requirements 3.6, 3.7**
 
@@ -103,7 +103,7 @@ This implementation plan breaks down Felipe OS into discrete coding tasks that b
     - Implement weekend blocking with family time reminder
     - _Requirements: 4.1, 4.2, 4.3_
 
-  - [ ]* 5.5 Write property test for time boundaries
+  - [x]* 5.5 Write property test for time boundaries
     - **Property 7: Time Boundary Enforcement**
     - **Validates: Requirements 4.1, 4.2, 4.3**
 

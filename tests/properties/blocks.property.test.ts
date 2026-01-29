@@ -499,6 +499,474 @@ describe('Property-Based Tests: Blocks Store', () => {
   })
 
   /**
+   * Property 6: LANDINGCHAT Priority Scheduling
+   * 
+   * LANDINGCHAT blocks have the highest priority and can override
+   * lower priority blocks (ESTUDIO, TAUSE, OTRO) when there are
+   * time conflicts. However, LANDINGCHAT blocks cannot override
+   * other LANDINGCHAT blocks (same priority).
+   * 
+   * Validates: Requirements 3.6, 3.7
+   */
+  describe('Property 6: LANDINGCHAT Priority Scheduling', () => {
+    it('should allow LANDINGCHAT to override lower priority blocks', async () => {
+      await fc.assert(
+        fc.asyncProperty(
+          blockGenerator(),
+          blockGenerator(),
+          async (block1, block2) => {
+            // Reset Pinia and store for each property test iteration
+            setActivePinia(createPinia())
+            const store = useBlocksStore()
+            await store.clearAllBlocks()
+            
+            const testDate = '2024-06-17' // Monday
+            
+            // Create a lower priority block first
+            const lowerPriorityBlock = {
+              ...block1,
+              date: testDate,
+              startTime: '10:00',
+              endTime: '11:30',
+              category: 'ESTUDIO' as Category
+            }
+            
+            // Create a LANDINGCHAT block that overlaps
+            const landingchatBlock = {
+              ...block2,
+              date: testDate,
+              startTime: '10:30',
+              endTime: '12:00',
+              category: 'LANDINGCHAT' as Category
+            }
+            
+            // Add lower priority block first
+            const result1 = await store.createBlock(lowerPriorityBlock)
+            
+            // Skip if first block fails for other reasons
+            if (!result1.success) {
+              return
+            }
+            
+            // Try to add LANDINGCHAT block (should override)
+            const result2 = await store.createBlock(landingchatBlock)
+            
+            // Property: LANDINGCHAT should successfully override lower priority
+            expect(result2.success).toBe(true)
+            
+            // Verify the lower priority block was removed
+            const storedBlocks = store.getBlocksByDate(testDate)
+            const hasLowerPriority = storedBlocks.some(b => 
+              b.category === 'ESTUDIO' && 
+              b.startTime === lowerPriorityBlock.startTime
+            )
+            const hasLandingchat = storedBlocks.some(b => 
+              b.category === 'LANDINGCHAT' && 
+              b.startTime === landingchatBlock.startTime
+            )
+            
+            expect(hasLowerPriority).toBe(false)
+            expect(hasLandingchat).toBe(true)
+            
+            // Verify no overlaps exist
+            expect(hasOverlaps(storedBlocks)).toBe(false)
+          }
+        ),
+        { numRuns: 50 }
+      )
+    })
+
+    it('should reject LANDINGCHAT blocks that conflict with other LANDINGCHAT blocks', async () => {
+      await fc.assert(
+        fc.asyncProperty(
+          blockGenerator(),
+          blockGenerator(),
+          async (block1, block2) => {
+            // Reset Pinia and store for each property test iteration
+            setActivePinia(createPinia())
+            const store = useBlocksStore()
+            await store.clearAllBlocks()
+            
+            const testDate = '2024-06-17' // Monday
+            
+            // Create first LANDINGCHAT block
+            const firstLandingchat = {
+              ...block1,
+              date: testDate,
+              startTime: '10:00',
+              endTime: '11:30',
+              category: 'LANDINGCHAT' as Category
+            }
+            
+            // Create second LANDINGCHAT block that overlaps
+            const secondLandingchat = {
+              ...block2,
+              date: testDate,
+              startTime: '10:30',
+              endTime: '12:00',
+              category: 'LANDINGCHAT' as Category
+            }
+            
+            // Add first LANDINGCHAT block
+            const result1 = await store.createBlock(firstLandingchat)
+            
+            // Skip if first block fails for other reasons
+            if (!result1.success) {
+              return
+            }
+            
+            // Try to add second LANDINGCHAT block (should fail)
+            const result2 = await store.createBlock(secondLandingchat)
+            
+            // Property: LANDINGCHAT cannot override same priority
+            expect(result2.success).toBe(false)
+            
+            // Verify only the first LANDINGCHAT block exists
+            const storedBlocks = store.getBlocksByDate(testDate)
+            const landingchatBlocks = storedBlocks.filter(b => b.category === 'LANDINGCHAT')
+            
+            expect(landingchatBlocks.length).toBe(1)
+            expect(landingchatBlocks[0].startTime).toBe(firstLandingchat.startTime)
+            
+            // Verify no overlaps exist
+            expect(hasOverlaps(storedBlocks)).toBe(false)
+          }
+        ),
+        { numRuns: 50 }
+      )
+    })
+
+    it('should allow LANDINGCHAT to override multiple lower priority blocks', async () => {
+      const store = useBlocksStore()
+      const testDate = '2024-06-17' // Monday
+      
+      // Create two lower priority blocks
+      const estudoBlock = {
+        date: testDate,
+        startTime: '09:00',
+        endTime: '10:30',
+        category: 'ESTUDIO' as Category,
+        description: 'Estudio block'
+      }
+      
+      const tauseBlock = {
+        date: testDate,
+        startTime: '10:30',
+        endTime: '12:00',
+        category: 'TAUSE' as Category,
+        description: 'Tause block'
+      }
+      
+      // Add both lower priority blocks
+      await store.createBlock(estudoBlock)
+      await store.createBlock(tauseBlock)
+      
+      // Verify both were added
+      let storedBlocks = store.getBlocksByDate(testDate)
+      expect(storedBlocks.length).toBe(2)
+      
+      // Create LANDINGCHAT block that overlaps both
+      const landingchatBlock = {
+        date: testDate,
+        startTime: '09:30',
+        endTime: '11:00',
+        category: 'LANDINGCHAT' as Category,
+        description: 'LANDINGCHAT priority block'
+      }
+      
+      // Add LANDINGCHAT block (should override both)
+      const result = await store.createBlock(landingchatBlock)
+      
+      expect(result.success).toBe(true)
+      
+      // Verify only LANDINGCHAT block remains
+      storedBlocks = store.getBlocksByDate(testDate)
+      expect(storedBlocks.length).toBe(1)
+      expect(storedBlocks[0].category).toBe('LANDINGCHAT')
+      expect(hasOverlaps(storedBlocks)).toBe(false)
+    })
+
+    it('should preserve non-overlapping blocks when LANDINGCHAT overrides', async () => {
+      const store = useBlocksStore()
+      const testDate = '2024-06-17' // Monday
+      
+      // Create three blocks: two that will be overridden, one that won't
+      const block1 = {
+        date: testDate,
+        startTime: '08:00',
+        endTime: '09:00',
+        category: 'ESTUDIO' as Category,
+        description: 'Early block (should remain)'
+      }
+      
+      const block2 = {
+        date: testDate,
+        startTime: '10:00',
+        endTime: '11:30',
+        category: 'TAUSE' as Category,
+        description: 'Middle block (will be overridden)'
+      }
+      
+      // Add both blocks
+      await store.createBlock(block1)
+      await store.createBlock(block2)
+      
+      // Create LANDINGCHAT block that only overlaps block2
+      const landingchatBlock = {
+        date: testDate,
+        startTime: '10:30',
+        endTime: '12:00',
+        category: 'LANDINGCHAT' as Category,
+        description: 'LANDINGCHAT block'
+      }
+      
+      // Add LANDINGCHAT block
+      const result = await store.createBlock(landingchatBlock)
+      
+      expect(result.success).toBe(true)
+      
+      // Verify block1 remains, block2 is removed, LANDINGCHAT is added
+      const storedBlocks = store.getBlocksByDate(testDate)
+      expect(storedBlocks.length).toBe(2)
+      
+      const hasEarlyBlock = storedBlocks.some(b => b.startTime === '08:00')
+      const hasMiddleBlock = storedBlocks.some(b => b.startTime === '10:00')
+      const hasLandingchat = storedBlocks.some(b => b.category === 'LANDINGCHAT')
+      
+      expect(hasEarlyBlock).toBe(true)
+      expect(hasMiddleBlock).toBe(false)
+      expect(hasLandingchat).toBe(true)
+      expect(hasOverlaps(storedBlocks)).toBe(false)
+    })
+  })
+
+  /**
+   * Property 7: Time Boundary Enforcement
+   * 
+   * The system enforces time boundaries: blocks should not extend
+   * past 5pm (work end time) and weekends should be blocked for
+   * family time. These rules can be overridden with explicit user
+   * consent, but the default behavior should enforce them.
+   * 
+   * Validates: Requirements 4.1, 4.2, 4.3
+   */
+  describe('Property 7: Time Boundary Enforcement', () => {
+    it('should reject blocks that end after 5pm without override', async () => {
+      await fc.assert(
+        fc.asyncProperty(
+          fc.integer({ min: 0, max: 49 }), // Just a seed for randomness
+          async (seed) => {
+            // Reset Pinia and store for each property test iteration
+            setActivePinia(createPinia())
+            const store = useBlocksStore()
+            await store.clearAllBlocks()
+            
+            const testDate = '2024-06-17' // Monday (weekday)
+            
+            // Create block that ends after 5pm
+            const lateBlock = {
+              date: testDate,
+              startTime: '16:00',
+              endTime: '17:30', // 5:30pm - after 5pm cutoff
+              category: 'LANDINGCHAT' as Category,
+              description: `Late work block ${seed}` // Valid description
+            }
+            
+            // Try to add without override
+            const result = await store.createBlock(lateBlock, false)
+            
+            // Property: Should be rejected without override
+            expect(result.success).toBe(false)
+            expect(result.errors).toBeDefined()
+            expect(result.errors?.some(e => 
+              e.includes('5pm') || e.includes('17:00')
+            )).toBe(true)
+            
+            // Verify block was not added
+            const storedBlocks = store.getBlocksByDate(testDate)
+            expect(storedBlocks.length).toBe(0)
+          }
+        ),
+        { numRuns: 50 }
+      )
+    })
+
+    it('should allow blocks that end after 5pm with override', async () => {
+      const store = useBlocksStore()
+      const testDate = '2024-06-17' // Monday
+      
+      // Create block that ends after 5pm
+      const lateBlock = {
+        date: testDate,
+        startTime: '16:00',
+        endTime: '17:30', // 5:30pm
+        category: 'LANDINGCHAT' as Category,
+        description: 'Late work block'
+      }
+      
+      // Try to add WITH override
+      const result = await store.createBlock(lateBlock, true)
+      
+      // Should succeed with override
+      expect(result.success).toBe(true)
+      expect(result.warnings).toBeDefined()
+      expect(result.warnings?.some(w => 
+        w.includes('5pm') || w.includes('17:00')
+      )).toBe(true)
+      
+      // Verify block was added
+      const storedBlocks = store.getBlocksByDate(testDate)
+      expect(storedBlocks.length).toBe(1)
+      expect(storedBlocks[0].endTime).toBe('17:30')
+    })
+
+    it('should reject weekend blocks without override', async () => {
+      await fc.assert(
+        fc.asyncProperty(
+          fc.integer({ min: 0, max: 49 }), // Just a seed for randomness
+          async (seed) => {
+            // Reset Pinia and store for each property test iteration
+            setActivePinia(createPinia())
+            const store = useBlocksStore()
+            await store.clearAllBlocks()
+            
+            // Use Saturday
+            const weekendDate = '2024-06-15' // Saturday
+            
+            // Create block on weekend
+            const weekendBlock = {
+              date: weekendDate,
+              startTime: '10:00',
+              endTime: '11:30',
+              category: 'LANDINGCHAT' as Category,
+              description: `Weekend work block ${seed}` // Valid description
+            }
+            
+            // Try to add without override
+            const result = await store.createBlock(weekendBlock, false)
+            
+            // Property: Should be rejected without override
+            expect(result.success).toBe(false)
+            expect(result.errors).toBeDefined()
+            expect(result.errors?.some(e => 
+              e.toLowerCase().includes('fin de semana') || 
+              e.toLowerCase().includes('weekend') ||
+              e.toLowerCase().includes('familia')
+            )).toBe(true)
+            
+            // Verify block was not added
+            const storedBlocks = store.getBlocksByDate(weekendDate)
+            expect(storedBlocks.length).toBe(0)
+          }
+        ),
+        { numRuns: 50 }
+      )
+    })
+
+    it('should reject Sunday blocks without override', async () => {
+      const store = useBlocksStore()
+      const sundayDate = '2024-06-16' // Sunday
+      
+      // Create block on Sunday
+      const sundayBlock = {
+        date: sundayDate,
+        startTime: '10:00',
+        endTime: '11:30',
+        category: 'ESTUDIO' as Category,
+        description: 'Sunday work block'
+      }
+      
+      // Try to add without override
+      const result = await store.createBlock(sundayBlock, false)
+      
+      // Should be rejected
+      expect(result.success).toBe(false)
+      expect(result.errors).toBeDefined()
+      
+      // Verify block was not added
+      const storedBlocks = store.getBlocksByDate(sundayDate)
+      expect(storedBlocks.length).toBe(0)
+    })
+
+    it('should allow weekend blocks with override', async () => {
+      const store = useBlocksStore()
+      const saturdayDate = '2024-06-15' // Saturday
+      
+      // Create block on weekend
+      const weekendBlock = {
+        date: saturdayDate,
+        startTime: '10:00',
+        endTime: '11:30',
+        category: 'LANDINGCHAT' as Category,
+        description: 'Weekend emergency work'
+      }
+      
+      // Try to add WITH override
+      const result = await store.createBlock(weekendBlock, true)
+      
+      // Should succeed with override and warnings
+      expect(result.success).toBe(true)
+      expect(result.warnings).toBeDefined()
+      expect(result.warnings?.some(w => 
+        w.includes('familia') || w.includes('fin de semana')
+      )).toBe(true)
+      
+      // Verify block was added
+      const storedBlocks = store.getBlocksByDate(saturdayDate)
+      expect(storedBlocks.length).toBe(1)
+    })
+
+    it('should reject blocks that end exactly at 5pm without override', async () => {
+      const store = useBlocksStore()
+      const testDate = '2024-06-17' // Monday
+      
+      // Create block that ends exactly at 5pm
+      const exactBlock = {
+        date: testDate,
+        startTime: '15:30',
+        endTime: '17:00', // exactly 5pm
+        category: 'LANDINGCHAT' as Category,
+        description: 'Block ending at 5pm'
+      }
+      
+      // Based on validation logic, blocks must end BEFORE 5pm (not at or after)
+      // So this should fail without override
+      const result = await store.createBlock(exactBlock, false)
+      expect(result.success).toBe(false)
+      expect(result.errors).toBeDefined()
+      
+      // But with override it should work
+      const resultWithOverride = await store.createBlock(exactBlock, true)
+      expect(resultWithOverride.success).toBe(true)
+      expect(resultWithOverride.warnings).toBeDefined()
+    })
+
+    it('should enforce both weekend and 5pm rules together', async () => {
+      const store = useBlocksStore()
+      const saturdayDate = '2024-06-15' // Saturday
+      
+      // Create block on weekend that also ends after 5pm
+      const doubleViolation = {
+        date: saturdayDate,
+        startTime: '16:00',
+        endTime: '17:30',
+        category: 'LANDINGCHAT' as Category,
+        description: 'Weekend + late block'
+      }
+      
+      // Should fail without override (violates both rules)
+      const result = await store.createBlock(doubleViolation, false)
+      expect(result.success).toBe(false)
+      
+      // Should succeed with override but have multiple warnings
+      const resultWithOverride = await store.createBlock(doubleViolation, true)
+      expect(resultWithOverride.success).toBe(true)
+      expect(resultWithOverride.warnings).toBeDefined()
+      expect(resultWithOverride.warnings!.length).toBeGreaterThan(0)
+    })
+  })
+
+  /**
    * Property: Data Persistence Round Trip
    * 
    * For any application data (blocks), storing data and then

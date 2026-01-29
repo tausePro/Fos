@@ -55,7 +55,7 @@ export const VALIDATION_RULES = {
   MAX_BLOCKS_PER_DAY: 3,
   MIN_BLOCK_DURATION_MINUTES: 30,
   MAX_BLOCK_DURATION_MINUTES: 120,
-  WORK_END_TIME: '23:59' // Temporarily relaxed for testing
+  WORK_END_TIME: '17:00' // 5pm cutoff
 } as const
 
 // Category colors for UI

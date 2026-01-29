@@ -34,7 +34,8 @@
     },
     "security": {
       "csp": null
-    }
+    },
+    "macOSPrivateApi": true
   },
   "bundle": {
     "active": true,
@@ -51,6 +52,11 @@
     "shortDescription": "Anti-procrastination productivity app",
     "longDescription": "Felipe OS is a minimalist anti-procrastination web application designed for deep work and focus management.",
     "copyright": "Copyright © 2025 Felipe (tausePro). All rights reserved.",
-    "licenseFile": "../LICENSE"
+    "licenseFile": "../LICENSE",
+    "macOS": {
+      "minimumSystemVersion": "10.15",
+      "exceptionDomain": "localhost",
+      "frameworks": []
+    }
   }
 }

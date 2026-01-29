@@ -156,7 +156,8 @@ export const useFocusStore = defineStore('focus', {
     },
 
     // Save state to localStorage
-    async saveState() {
+    saveState() {
+      console.log('saveState called')
       try {
         if (process.client) {
           const state = {
@@ -168,7 +169,9 @@ export const useFocusStore = defineStore('focus', {
             totalPausedTime: this.totalPausedTime,
             cellPhoneMode: this.cellPhoneMode
           }
+          console.log('Saving focus state:', state)
           localStorage.setItem('felipe-os-focus-state', JSON.stringify(state))
+          console.log('Focus state saved successfully')
         }
       } catch (error) {
         console.error('Error saving focus state:', error)
@@ -225,7 +228,7 @@ export const useFocusStore = defineStore('focus', {
     },
 
     // Exit focus mode
-    async exitFocusMode(): Promise<void> {
+    exitFocusMode(): void {
       this.isFocusMode = false
       this.currentBlockId = null
       this.sessionStartTime = null
@@ -233,21 +236,21 @@ export const useFocusStore = defineStore('focus', {
       this.pausedAt = null
       this.totalPausedTime = 0
       
-      await this.saveState()
+      this.saveState()
     },
 
     // Pause current focus session
-    async pauseSession(): Promise<void> {
+    pauseSession(): void {
       if (!this.isFocusMode || this.isPaused) return
       
       this.isPaused = true
       this.pausedAt = getCurrentTime()
       
-      await this.saveState()
+      this.saveState()
     },
 
     // Resume paused focus session
-    async resumeSession(): Promise<void> {
+    resumeSession(): void {
       if (!this.isFocusMode || !this.isPaused || !this.pausedAt) return
       
       // Calculate paused duration and add to total
@@ -259,11 +262,11 @@ export const useFocusStore = defineStore('focus', {
       this.isPaused = false
       this.pausedAt = null
       
-      await this.saveState()
+      this.saveState()
     },
 
     // Complete current block and exit focus mode
-    async completeCurrentBlock(): Promise<{ success: boolean; error?: string }> {
+    completeCurrentBlock(): { success: boolean; error?: string } {
       if (!this.currentBlockId) {
         return { success: false, error: 'No active block to complete' }
       }
@@ -271,23 +274,24 @@ export const useFocusStore = defineStore('focus', {
       const elapsedMinutes = this.elapsedTime
       
       const blocksStore = useBlocksStore()
-      const result = await blocksStore.completeBlock(this.currentBlockId)
+      const result = blocksStore.completeBlock(this.currentBlockId)
       
-      if (result.success) {
+      if (result && result.success) {
         // Enviar notificación de completado antes de salir del focus mode
         if (process.client) {
           try {
             const { notifyFocusComplete } = useNotifications()
-            await notifyFocusComplete(elapsedMinutes)
+            notifyFocusComplete(elapsedMinutes)
           } catch (error) {
             console.error('Error enviando notificación de focus completado:', error)
           }
         }
         
-        await this.exitFocusMode()
+        this.exitFocusMode()
+        return { success: true }
       }
       
-      return result
+      return result || { success: false, error: 'Unknown error' }
     },
 
     // Move to next block in focus mode

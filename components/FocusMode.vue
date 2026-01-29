@@ -4,7 +4,7 @@
       <!-- Header -->
       <div class="focus-header">
         <h1 class="focus-title">MODO ENFOQUE</h1>
-        <button @click="exitFocus" class="exit-btn">
+        <button @click="handleExitFocus" class="exit-btn">
           Salir del Enfoque
         </button>
       </div>
@@ -55,21 +55,21 @@
         <div class="focus-controls">
           <button 
             v-if="!isPaused"
-            @click="pauseSession"
+            @click="handlePauseSession"
             class="btn btn-secondary"
           >
             Pausar
           </button>
           <button 
             v-else
-            @click="resumeSession"
+            @click="handleResumeSession"
             class="btn btn-success"
           >
             Reanudar
           </button>
           
           <button 
-            @click="completeBlock"
+            @click="handleCompleteBlock"
             class="btn btn-primary"
           >
             Completar Bloque
@@ -86,7 +86,7 @@
       <div v-else class="no-block">
         <h2>No hay bloque activo</h2>
         <p>No se encontró un bloque para enfocar</p>
-        <button @click="exitFocus" class="btn btn-primary">
+        <button @click="handleExitFocus" class="btn btn-primary">
           Volver al Dashboard
         </button>
       </div>
@@ -94,6 +94,17 @@
       <!-- Cell Phone Mode Alert -->
       <div v-if="isInRedZone && cellPhoneMode" class="red-zone-alert">
         🔴 ZONA ROJA ACTIVA - Minimiza el uso del celular
+      </div>
+      
+      <!-- Emergency Help -->
+      <div class="emergency-help">
+        <div class="help-title">🆘 ATAJOS DE EMERGENCIA:</div>
+        <div class="help-shortcuts">
+          <div>ESC = Salir inmediatamente</div>
+          <div>Ctrl/Cmd + Q = Salir forzado</div>
+          <div>Ctrl/Cmd + C = Completar y salir</div>
+          <div>F1 = Salir | F2 = Completar</div>
+        </div>
       </div>
     </div>
   </div>
@@ -105,68 +116,175 @@ import { getCategoryDisplayName } from '~/utils/categoryHelpers'
 
 // Stores
 const focusStore = useFocusStore()
+const router = useRouter()
 
-// Computed properties from store
-const currentBlock = computed(() => focusStore.currentBlock)
-const elapsedTime = computed(() => focusStore.elapsedTime)
-const remainingTime = computed(() => focusStore.remainingTime)
-const progressPercentage = computed(() => focusStore.progressPercentage)
-const isOverdue = computed(() => focusStore.isOverdue)
-const isPaused = computed(() => focusStore.isPaused)
-const cellPhoneMode = computed(() => focusStore.cellPhoneMode)
-const isInRedZone = computed(() => focusStore.isInRedZone)
+// Tauri Commands - Professional solution for macOS 26.1
+const { isTauri, focusCommands } = useTauriCommands()
 
-// Methods
-async function exitFocus() {
-  if (confirm('¿Estás seguro de que quieres salir del modo enfoque?')) {
-    await focusStore.exitFocusMode()
+// Reactive refs for UI state
+const currentBlock = ref(null)
+const elapsedTime = ref(0)
+const remainingTime = ref(0)
+const progressPercentage = ref(0)
+const isOverdue = ref(false)
+const isPaused = ref(false)
+const cellPhoneMode = ref(false)
+const isInRedZone = ref(false)
+
+// Update UI state function
+function updateUIState() {
+  currentBlock.value = focusStore.currentBlock
+  elapsedTime.value = focusStore.elapsedTime
+  remainingTime.value = focusStore.remainingTime
+  progressPercentage.value = focusStore.progressPercentage
+  isOverdue.value = focusStore.isOverdue
+  isPaused.value = focusStore.isPaused
+  cellPhoneMode.value = focusStore.cellPhoneMode
+  isInRedZone.value = focusStore.isInRedZone
+}
+
+/**
+ * Professional Event Handlers using Tauri Commands
+ * 
+ * These handlers use Tauri's native IPC instead of relying on WebView events.
+ * This bypasses the macOS 26.1 Tahoe WebKit click event bug.
+ */
+
+const handleExitFocus = async () => {
+  console.log('handleExitFocus called')
+  
+  if (!window.confirm('¿Estás seguro de que quieres salir del modo enfoque?')) {
+    return
   }
-}
-
-async function pauseSession() {
-  await focusStore.pauseSession()
-}
-
-async function resumeSession() {
-  await focusStore.resumeSession()
-}
-
-async function completeBlock() {
-  if (confirm('¿Marcar este bloque como completado?')) {
-    const result = await focusStore.completeCurrentBlock()
-    if (!result.success) {
-      alert(`Error: ${result.error}`)
+  
+  // Try Tauri command first (for native app)
+  if (isTauri()) {
+    const success = await focusCommands.exit()
+    if (success) {
+      console.log('Tauri command executed, exiting focus mode')
     }
   }
+  
+  // Execute the actual logic (works in both web and native)
+  focusStore.exitFocusMode()
+  router.push('/')
 }
 
-// Update time every second in focus mode
+const handleCompleteBlock = async () => {
+  console.log('handleCompleteBlock called')
+  
+  if (!window.confirm('¿Marcar este bloque como completado?')) {
+    return
+  }
+  
+  // Try Tauri command first (for native app)
+  if (isTauri()) {
+    const success = await focusCommands.complete()
+    if (success) {
+      console.log('Tauri command executed, completing block')
+    }
+  }
+  
+  // Execute the actual logic (works in both web and native)
+  const result = focusStore.completeCurrentBlock()
+  if (result.success) {
+    router.push('/')
+  } else {
+    window.alert(`Error: ${result.error}`)
+  }
+}
+
+const handlePauseSession = async () => {
+  console.log('handlePauseSession called')
+  
+  // Try Tauri command first (for native app)
+  if (isTauri()) {
+    const success = await focusCommands.pause()
+    if (success) {
+      console.log('Tauri command executed, pausing session')
+    }
+  }
+  
+  // Execute the actual logic (works in both web and native)
+  focusStore.pauseSession()
+  updateUIState()
+}
+
+const handleResumeSession = async () => {
+  console.log('handleResumeSession called')
+  
+  // Try Tauri command first (for native app)
+  if (isTauri()) {
+    const success = await focusCommands.resume()
+    if (success) {
+      console.log('Tauri command executed, resuming session')
+    }
+  }
+  
+  // Execute the actual logic (works in both web and native)
+  focusStore.resumeSession()
+  updateUIState()
+}
+
+// Emergency escape handlers - Direct keyboard shortcuts
+const emergencyEscape = async () => {
+  console.log('EMERGENCY ESCAPE ACTIVATED')
+  focusStore.exitFocusMode()
+  router.push('/')
+}
+
+const emergencyComplete = async () => {
+  console.log('EMERGENCY COMPLETE ACTIVATED')
+  if (focusStore.currentBlockId) {
+    focusStore.completeCurrentBlock()
+  }
+  router.push('/')
+}
+
+// Update time every second
 let timeInterval: NodeJS.Timeout | null = null
 
 onMounted(() => {
+  console.log('FocusMode component mounted')
+  console.log('Running in Tauri:', isTauri())
+  updateUIState()
+  
   timeInterval = setInterval(() => {
-    // Update timestamp to trigger reactivity
     focusStore.updateTimestamp()
+    updateUIState()
   }, 1000)
-})
-
-onUnmounted(() => {
-  if (timeInterval) {
-    clearInterval(timeInterval)
-  }
-})
-
-// Keyboard shortcuts
-onMounted(() => {
+  
+  // Keyboard shortcuts - EMERGENCY EXITS
   const handleKeydown = (event: KeyboardEvent) => {
+    console.log('Key pressed:', event.key, 'Ctrl:', event.ctrlKey, 'Meta:', event.metaKey)
+    
+    // EMERGENCY EXITS - Multiple ways to escape
     if (event.key === 'Escape') {
-      exitFocus()
-    } else if (event.key === ' ' && !isPaused.value) {
+      console.log('Escape key - emergency exit')
+      emergencyEscape()
+    } else if ((event.ctrlKey || event.metaKey) && event.key === 'q') {
+      console.log('Ctrl/Cmd+Q - emergency exit')
       event.preventDefault()
-      pauseSession()
-    } else if (event.key === ' ' && isPaused.value) {
+      emergencyEscape()
+    } else if ((event.ctrlKey || event.metaKey) && event.key === 'c') {
+      console.log('Ctrl/Cmd+C - emergency complete')
       event.preventDefault()
-      resumeSession()
+      emergencyComplete()
+    } else if (event.key === 'F1') {
+      console.log('F1 - emergency exit')
+      event.preventDefault()
+      emergencyEscape()
+    } else if (event.key === 'F2') {
+      console.log('F2 - emergency complete')
+      event.preventDefault()
+      emergencyComplete()
+    } else if (event.key === ' ') {
+      event.preventDefault()
+      if (isPaused.value) {
+        handleResumeSession()
+      } else {
+        handlePauseSession()
+      }
     }
   }
   
@@ -175,6 +293,12 @@ onMounted(() => {
   onUnmounted(() => {
     document.removeEventListener('keydown', handleKeydown)
   })
+})
+
+onUnmounted(() => {
+  if (timeInterval) {
+    clearInterval(timeInterval)
+  }
 })
 </script>
 
@@ -227,10 +351,18 @@ onMounted(() => {
   font-weight: 600;
   cursor: pointer;
   transition: background 0.2s;
+  min-height: 44px;
+  min-width: 120px;
+  font-size: 14px;
 }
 
 .exit-btn:hover {
   background: #dc2626;
+}
+
+.exit-btn:active {
+  background: #b91c1c;
+  transform: scale(0.98);
 }
 
 .current-block {
@@ -328,6 +460,49 @@ onMounted(() => {
   margin-bottom: 1rem;
 }
 
+.focus-controls .btn {
+  min-height: 44px;
+  min-width: 140px;
+  font-size: 16px;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  padding: 0.75rem 1.5rem;
+}
+
+.focus-controls .btn:active {
+  transform: scale(0.98);
+}
+
+.focus-controls .btn-primary {
+  background: #3b82f6;
+  color: white;
+}
+
+.focus-controls .btn-primary:hover {
+  background: #2563eb;
+}
+
+.focus-controls .btn-secondary {
+  background: #6b7280;
+  color: white;
+}
+
+.focus-controls .btn-secondary:hover {
+  background: #4b5563;
+}
+
+.focus-controls .btn-success {
+  background: #10b981;
+  color: white;
+}
+
+.focus-controls .btn-success:hover {
+  background: #059669;
+}
+
 .paused-indicator {
   background: #fbbf24;
   color: #92400e;
@@ -347,6 +522,35 @@ onMounted(() => {
   font-weight: 700;
   margin-top: 1rem;
   animation: pulse 3s infinite;
+}
+
+.emergency-help {
+  background: #f0f9ff;
+  border: 2px solid #0ea5e9;
+  color: #0c4a6e;
+  padding: 1rem;
+  border-radius: 8px;
+  margin-top: 1rem;
+  font-size: 0.875rem;
+}
+
+.help-title {
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  text-align: center;
+}
+
+.help-shortcuts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.25rem;
+  font-family: monospace;
+}
+
+@media (max-width: 640px) {
+  .help-shortcuts {
+    grid-template-columns: 1fr;
+  }
 }
 
 .no-block {

@@ -88,7 +88,7 @@ export function validateBlockLimit(blocks: Block[], date: string): { isValid: bo
   return { isValid: true }
 }
 
-export function validateBlockOverlap(blocks: Block[], newBlock: Omit<Block, 'id' | 'completed'>): { isValid: boolean; error?: string } {
+export function validateBlockOverlap(blocks: Block[], newBlock: Omit<Block, 'id' | 'completed'>): { isValid: boolean; error?: string; isDuplicate?: boolean } {
   const dailyBlocks = blocks.filter(block => 
     block.date === newBlock.date && block.id !== (newBlock as any).id
   )
@@ -100,18 +100,28 @@ export function validateBlockOverlap(blocks: Block[], newBlock: Omit<Block, 'id'
     const blockStartMinutes = timeToMinutes(block.startTime)
     const blockEndMinutes = timeToMinutes(block.endTime)
 
-    // Check for overlap
+    // Check for overlap (including exact duplicates)
     if (
       (newStartMinutes < blockEndMinutes && newEndMinutes > blockStartMinutes)
     ) {
+      // Check if it's an exact duplicate (same time slot)
+      if (newStartMinutes === blockStartMinutes && newEndMinutes === blockEndMinutes) {
+        return {
+          isValid: false,
+          error: `Block with identical time slot already exists: ${block.startTime}-${block.endTime} (${block.description})`,
+          isDuplicate: true
+        }
+      }
+      
       return {
         isValid: false,
-        error: `Block overlaps with existing block: ${block.startTime}-${block.endTime} (${block.description})`
+        error: `Block overlaps with existing block: ${block.startTime}-${block.endTime} (${block.description})`,
+        isDuplicate: false
       }
     }
   }
 
-  return { isValid: true }
+  return { isValid: true, isDuplicate: false }
 }
 
 export function validateWorkHours(time: string): { isValid: boolean; error?: string } {
@@ -220,6 +230,21 @@ export function validateBlock(
     errors.push(`End time: ${endTimeValidation.error}`)
   }
 
+  // Validate 30-minute increments for both start and end times
+  if (startTimeValidation.isValid) {
+    const startIncrementValidation = validateTimeIncrement(blockData.startTime)
+    if (!startIncrementValidation.isValid) {
+      errors.push(`Start time: ${startIncrementValidation.error}`)
+    }
+  }
+
+  if (endTimeValidation.isValid) {
+    const endIncrementValidation = validateTimeIncrement(blockData.endTime)
+    if (!endIncrementValidation.isValid) {
+      errors.push(`End time: ${endIncrementValidation.error}`)
+    }
+  }
+
   // If time formats are valid, validate duration
   if (startTimeValidation.isValid && endTimeValidation.isValid) {
     const durationValidation = validateBlockDuration(blockData.startTime, blockData.endTime)
@@ -293,6 +318,17 @@ export function resolveLandingchatConflict(
 
   // If new block is LANDINGCHAT, it can override lower priority blocks
   if (newBlock.category === 'LANDINGCHAT') {
+    // Check if any conflicting block is also LANDINGCHAT (same priority)
+    const landingchatConflicts = conflictingBlocks.filter(block => block.category === 'LANDINGCHAT')
+    if (landingchatConflicts.length > 0) {
+      // Cannot override blocks with same priority
+      return {
+        canSchedule: false,
+        conflictingBlocks: landingchatConflicts,
+        message: `Conflicto con otro bloque LANDINGCHAT: ${landingchatConflicts.map(b => `${b.startTime}-${b.endTime} (${b.description})`).join(', ')}`
+      }
+    }
+    
     const canOverride = conflictingBlocks.every(block => 
       getCategoryPriority(block.category) > getCategoryPriority('LANDINGCHAT')
     )
@@ -421,12 +457,48 @@ export function validateBlockWithPriority(
 
   // If basic validation failed, check for LANDINGCHAT priority resolution
   if (!basicValidation.isValid) {
-    // Check if the only error is overlap, which we might resolve with LANDINGCHAT priority
-    const hasOnlyOverlapError = basicValidation.errors.length === 1 && 
-      basicValidation.errors[0].includes('overlaps with existing block')
+    // Check if the error is overlap-related
+    const hasOverlapError = basicValidation.errors.some(err => 
+      err.includes('overlaps with existing block')
+    )
     
-    if (hasOnlyOverlapError && blockData.category === 'LANDINGCHAT') {
+    // Check if it's a duplicate (exact same time slot)
+    const hasDuplicateError = basicValidation.errors.some(err => 
+      err.includes('Block with identical time slot already exists')
+    )
+    
+    // If it's a duplicate, we need to check if LANDINGCHAT can override
+    if (hasDuplicateError && blockData.category === 'LANDINGCHAT') {
       // Try to resolve LANDINGCHAT conflict
+      const conflictResolution = resolveLandingchatConflict(blocks, blockData)
+      
+      if (conflictResolution.canSchedule && conflictResolution.conflictResolution === 'override') {
+        // LANDINGCHAT can override lower priority blocks even with exact same time
+        warnings.push(conflictResolution.message!)
+        
+        // If we have time boundary errors, still fail
+        if (errors.length > 0 && !allowTimeBoundaryOverride) {
+          return {
+            isValid: false,
+            errors,
+            warnings,
+            requiresOverride
+          }
+        }
+        
+        return {
+          isValid: true,
+          errors: [],
+          warnings,
+          conflictResolution,
+          requiresOverride
+        }
+      } else if (!conflictResolution.canSchedule) {
+        // Cannot schedule due to same-priority conflict (both LANDINGCHAT)
+        errors.push(conflictResolution.message || 'Cannot schedule block due to conflict')
+      }
+    } else if (hasOverlapError && blockData.category === 'LANDINGCHAT') {
+      // Regular overlap (not exact duplicate)
       const conflictResolution = resolveLandingchatConflict(blocks, blockData)
       
       if (conflictResolution.canSchedule && conflictResolution.conflictResolution === 'override') {
@@ -449,11 +521,16 @@ export function validateBlockWithPriority(
           conflictResolution,
           requiresOverride
         }
+      } else if (!conflictResolution.canSchedule) {
+        // Cannot schedule due to same-priority conflict
+        errors.push(conflictResolution.message || 'Cannot schedule block due to conflict')
       }
     }
     
     // Add basic validation errors if we can't resolve conflicts
-    errors.push(...basicValidation.errors)
+    if (errors.length === 0) {
+      errors.push(...basicValidation.errors)
+    }
   }
 
   return {

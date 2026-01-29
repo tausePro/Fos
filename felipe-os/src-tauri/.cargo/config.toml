@@ -1,0 +1,11 @@
+[build]
+target = "x86_64-apple-darwin"
+
+[target.x86_64-apple-darwin]
+rustflags = [
+  "-C", "link-arg=-Wl,-rpath,@loader_path/../Frameworks",
+  "-C", "target-feature=+crt-static"
+]
+
+[env]
+MACOSX_DEPLOYMENT_TARGET = "10.15"

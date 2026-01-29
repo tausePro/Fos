@@ -30,6 +30,50 @@ async fn hide_main_window(app: tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+// Focus Mode Commands - Professional solution for macOS 26.1 click event issues
+#[tauri::command]
+async fn focus_exit() -> Result<String, String> {
+    log::info!("focus_exit command called");
+    Ok("exit".to_string())
+}
+
+#[tauri::command]
+async fn focus_complete() -> Result<String, String> {
+    log::info!("focus_complete command called");
+    Ok("complete".to_string())
+}
+
+#[tauri::command]
+async fn focus_pause() -> Result<String, String> {
+    log::info!("focus_pause command called");
+    Ok("pause".to_string())
+}
+
+#[tauri::command]
+async fn focus_resume() -> Result<String, String> {
+    log::info!("focus_resume command called");
+    Ok("resume".to_string())
+}
+
+// Settings Commands
+#[tauri::command]
+async fn settings_toggle_weekend() -> Result<String, String> {
+    log::info!("settings_toggle_weekend command called");
+    Ok("toggle_weekend".to_string())
+}
+
+#[tauri::command]
+async fn settings_toggle_cellphone() -> Result<String, String> {
+    log::info!("settings_toggle_cellphone command called");
+    Ok("toggle_cellphone".to_string())
+}
+
+#[tauri::command]
+async fn settings_reset() -> Result<String, String> {
+    log::info!("settings_reset command called");
+    Ok("reset".to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -100,7 +144,14 @@ pub fn run() {
             update_tray_status,
             send_notification_command,
             request_notification_permissions,
-            test_notification
+            test_notification,
+            focus_exit,
+            focus_complete,
+            focus_pause,
+            focus_resume,
+            settings_toggle_weekend,
+            settings_toggle_cellphone,
+            settings_reset
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

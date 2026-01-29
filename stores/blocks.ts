@@ -285,6 +285,17 @@ export const useBlocksStore = defineStore('blocks', {
         this.blocks = this.blocks.filter(block => !conflictingIds.includes(block.id))
         
         console.log('Removed conflicting blocks:', conflictingIds.length)
+        
+        // Re-validate daily limit after removing conflicting blocks
+        const dailyBlocksAfterRemoval = this.blocks.filter(b => b.date === blockData.date)
+        if (dailyBlocksAfterRemoval.length >= VALIDATION_RULES.MAX_BLOCKS_PER_DAY) {
+          console.log('Daily limit reached after removing conflicting blocks')
+          return {
+            success: false,
+            errors: [`Maximum ${VALIDATION_RULES.MAX_BLOCKS_PER_DAY} blocks allowed per day`],
+            warnings: validation.warnings
+          }
+        }
       }
       
       // Create the block
@@ -385,18 +396,29 @@ export const useBlocksStore = defineStore('blocks', {
     },
 
     // Complete a block (set actual end time and mark as completed)
-    async completeBlock(blockId: string): Promise<{ success: boolean; error?: string }> {
+    completeBlock(blockId: string): { success: boolean; error?: string } {
+      console.log('completeBlock called with blockId:', blockId)
       const block = this.blocks.find(b => b.id === blockId)
       if (!block) {
+        console.error('Block not found:', blockId)
         return { success: false, error: 'Block not found' }
       }
       
+      console.log('Block found:', block)
       const now = new Date()
       block.actualEndTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
       block.completed = true
       
-      await this.saveToStorage()
-      return { success: true }
+      console.log('Block updated:', block)
+      
+      try {
+        this.saveToStorage()
+        console.log('saveToStorage completed successfully')
+        return { success: true }
+      } catch (error) {
+        console.error('Error in saveToStorage:', error)
+        return { success: false, error: `Error saving: ${error.message}` }
+      }
     },
 
     // Get blocks by category

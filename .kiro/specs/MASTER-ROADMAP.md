@@ -18,7 +18,8 @@ Felipe OS evoluciona en 3 fases principales:
 - [x] Workaround para macOS 26.1 Tahoe
 
 ### En Progreso 🚧
-- [ ] Global Shortcuts (Task 5.1-5.3)
+- [x] Global Shortcuts (Task 5.1) ✅
+- [ ] Global Shortcuts Customization (Task 5.2-5.3)
 - [ ] Floating Window (Task 6.1-6.3)
 - [ ] Auto-Launch (Task 7.1-7.3)
 - [ ] Data Synchronization (Task 9.1-9.3)
@@ -90,13 +91,14 @@ felipe-os-macos-native spec:
 **Prioridad**: ⭐⭐⭐⭐ ALTA
 
 ```
-- [ ] Task 5.1: Create GlobalShortcutManager
+- [x] Task 5.1: Create GlobalShortcutManager ✅
 - [ ] Task 5.2: Add shortcut customization
 - [ ] Task 5.3: Write property tests
 ```
 
 **Impacto**: Mejora UX significativamente
 **Tiempo estimado**: 3-4 días
+**Progreso**: 1/3 completado (33%) 🚧
 
 #### 2.2 Floating Window
 **Prioridad**: ⭐⭐⭐⭐ ALTA
@@ -244,7 +246,7 @@ Objetivo:  ████████████████░░░░ 80%
 ### Feature Completion
 ```
 MVP Web:              ████████████████████ 100% ✅
-macOS Native:         ████████████░░░░░░░░ 60% 🚧
+macOS Native:         █████████████░░░░░░░ 65% 🚧
 AI & Calendar:        ░░░░░░░░░░░░░░░░░░░░ 0% 📋
 ```
 

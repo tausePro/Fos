@@ -7,7 +7,7 @@ mod global_shortcut_manager;
 
 pub use system_tray::{SystemTrayManager, FocusStatus, update_tray_status};
 pub use notification_manager::{NotificationManager, NotificationType, NotificationPriority, send_notification_command, request_notification_permissions, test_notification};
-pub use global_shortcut_manager::FelipeGlobalShortcutManager;
+pub use global_shortcut_manager::{FelipeGlobalShortcutManager, GlobalShortcutManager};
 
 // Comandos Tauri que expondremos al frontend
 #[tauri::command]

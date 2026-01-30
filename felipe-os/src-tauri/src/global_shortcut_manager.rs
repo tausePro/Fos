@@ -159,6 +159,9 @@ impl Default for FelipeGlobalShortcutManager {
     }
 }
 
+// Alias for convenience in tests
+pub type GlobalShortcutManager = FelipeGlobalShortcutManager;
+
 #[cfg(test)]
 mod tests {
     use super::*;

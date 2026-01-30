@@ -18,8 +18,7 @@ Felipe OS evoluciona en 3 fases principales:
 - [x] Workaround para macOS 26.1 Tahoe
 
 ### En Progreso 🚧
-- [x] Global Shortcuts (Task 5.1) ✅
-- [ ] Global Shortcuts Customization (Task 5.2-5.3)
+- [x] Global Shortcuts (Task 5.1-5.3) ✅
 - [ ] Floating Window (Task 6.1-6.3)
 - [ ] Auto-Launch (Task 7.1-7.3)
 - [ ] Data Synchronization (Task 9.1-9.3)
@@ -46,7 +45,8 @@ felipe-os spec:
 - [x] Property 7: Time Boundary Enforcement (task 5.5) ✅
 
 felipe-os-macos-native spec:
-- [ ] Property 6: Global Shortcut Actions (task 5.3)
+- [x] Property 6: Global Shortcut Actions (task 5.3) ✅
+- [x] Property 7: Shortcut Conflict Resolution (task 5.3) ✅
 - [ ] Property 8: Floating Window Lifecycle (task 6.3)
 - [ ] Property 11: Auto-Launch Configuration (task 7.3)
 - [ ] Property 13: Data Synchronization Consistency (task 9.3)
@@ -54,7 +54,7 @@ felipe-os-macos-native spec:
 
 **Impacto**: Garantiza correctness del sistema core
 **Tiempo estimado**: 1 semana
-**Progreso**: 4/8 completados (50%) ✅
+**Progreso**: 6/10 completados (60%) ✅
 
 #### 1.2 E2E Tests
 **Prioridad**: ⭐⭐⭐⭐ ALTA
@@ -92,13 +92,13 @@ felipe-os-macos-native spec:
 
 ```
 - [x] Task 5.1: Create GlobalShortcutManager ✅
-- [ ] Task 5.2: Add shortcut customization
-- [ ] Task 5.3: Write property tests
+- [x] Task 5.2: Add shortcut customization ✅
+- [x] Task 5.3: Write property tests ✅
 ```
 
 **Impacto**: Mejora UX significativamente
 **Tiempo estimado**: 3-4 días
-**Progreso**: 1/3 completado (33%) 🚧
+**Progreso**: 3/3 completado (100%) ✅
 
 #### 2.2 Floating Window
 **Prioridad**: ⭐⭐⭐⭐ ALTA
@@ -239,23 +239,23 @@ Documentation:
 
 ### Testing Coverage
 ```
-Actual:    ████░░░░░░░░░░░░░░░░ 19%
+Actual:    █████░░░░░░░░░░░░░░░ 23%
 Objetivo:  ████████████████░░░░ 80%
 ```
 
 ### Feature Completion
 ```
 MVP Web:              ████████████████████ 100% ✅
-macOS Native:         █████████████░░░░░░░ 65% 🚧
+macOS Native:         ██████████████░░░░░░ 70% 🚧
 AI & Calendar:        ░░░░░░░░░░░░░░░░░░░░ 0% 📋
 ```
 
 ### Property Tests
 ```
 felipe-os:            ████░░░░░░░░░░░░░░░░ 7/17 (41%)
-felipe-os-macos:      ██░░░░░░░░░░░░░░░░░░ 2/18 (11%)
+felipe-os-macos:      ████░░░░░░░░░░░░░░░░ 4/18 (22%)
 felipe-os-ai:         ░░░░░░░░░░░░░░░░░░░░ 0/12 (0%)
-Total:                ████░░░░░░░░░░░░░░░░ 9/47 (19%)
+Total:                █████░░░░░░░░░░░░░░░ 11/47 (23%)
 ```
 
 ## 🎯 Prioridades por Impacto

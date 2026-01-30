@@ -67,7 +67,7 @@ Este plan de implementación convierte el MVP web existente de Felipe OS en una 
     - Validate shortcut combinations and handle conflicts
     - _Requirements: 4.5, 10.2_
 
-  - [ ] 5.3 Write property tests for global shortcuts
+  - [x] 5.3 Write property tests for global shortcuts
     - **Property 6: Global Shortcut Actions**
     - **Property 7: Shortcut Conflict Resolution**
     - **Validates: Requirements 4.1, 4.2, 4.3, 4.4, 4.5**

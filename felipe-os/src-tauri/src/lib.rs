@@ -4,10 +4,12 @@ use std::sync::{Arc, Mutex};
 mod system_tray;
 mod notification_manager;
 mod global_shortcut_manager;
+mod floating_window_manager;
 
 pub use system_tray::{SystemTrayManager, FocusStatus, update_tray_status};
 pub use notification_manager::{NotificationManager, NotificationType, NotificationPriority, send_notification_command, request_notification_permissions, test_notification};
 pub use global_shortcut_manager::{FelipeGlobalShortcutManager, GlobalShortcutManager};
+pub use floating_window_manager::{FloatingWindowManager, FloatingWindowData};
 
 // Comandos Tauri que expondremos al frontend
 #[tauri::command]
@@ -74,6 +76,62 @@ async fn settings_toggle_cellphone() -> Result<String, String> {
 async fn settings_reset() -> Result<String, String> {
     log::info!("settings_reset command called");
     Ok("reset".to_string())
+}
+
+// Floating Window Commands
+#[tauri::command]
+async fn show_floating_window(app: tauri::AppHandle) -> Result<(), String> {
+    log::info!("show_floating_window command called");
+    
+    if let Some(manager) = app.try_state::<Arc<Mutex<FloatingWindowManager>>>() {
+        let manager = manager.lock().map_err(|e| format!("Failed to lock manager: {}", e))?;
+        manager.show_floating_window(&app)?;
+    } else {
+        // Create new manager if not exists
+        let manager = FloatingWindowManager::new();
+        manager.show_floating_window(&app)?;
+        app.manage(Arc::new(Mutex::new(manager)));
+    }
+    
+    Ok(())
+}
+
+#[tauri::command]
+async fn hide_floating_window(app: tauri::AppHandle) -> Result<(), String> {
+    log::info!("hide_floating_window command called");
+    
+    if let Some(manager) = app.try_state::<Arc<Mutex<FloatingWindowManager>>>() {
+        let manager = manager.lock().map_err(|e| format!("Failed to lock manager: {}", e))?;
+        manager.hide_floating_window(&app)?;
+    }
+    
+    Ok(())
+}
+
+#[tauri::command]
+async fn update_floating_window(
+    app: tauri::AppHandle,
+    session_type: String,
+    time_remaining: u32,
+    progress_percent: f32,
+    is_zona_roja: bool,
+) -> Result<(), String> {
+    log::info!("update_floating_window command called");
+    
+    if let Some(manager) = app.try_state::<Arc<Mutex<FloatingWindowManager>>>() {
+        let manager = manager.lock().map_err(|e| format!("Failed to lock manager: {}", e))?;
+        
+        let data = FloatingWindowData {
+            session_type,
+            time_remaining,
+            progress_percent,
+            is_zona_roja,
+        };
+        
+        manager.update_content(&app, data)?;
+    }
+    
+    Ok(())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -170,7 +228,10 @@ pub fn run() {
             focus_resume,
             settings_toggle_weekend,
             settings_toggle_cellphone,
-            settings_reset
+            settings_reset,
+            show_floating_window,
+            hide_floating_window,
+            update_floating_window
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

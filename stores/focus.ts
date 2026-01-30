@@ -221,6 +221,14 @@ export const useFocusStore = defineStore('focus', {
         } catch (error) {
           console.error('Error enviando notificación de inicio de focus:', error)
         }
+        
+        // Show floating window
+        try {
+          const { showFloatingWindow } = useFloatingWindow()
+          await showFloatingWindow()
+        } catch (error) {
+          console.error('Error showing floating window:', error)
+        }
       }
       
       await this.saveState()
@@ -229,6 +237,16 @@ export const useFocusStore = defineStore('focus', {
 
     // Exit focus mode
     exitFocusMode(): void {
+      // Hide floating window
+      if (process.client) {
+        try {
+          const { hideFloatingWindow } = useFloatingWindow()
+          hideFloatingWindow()
+        } catch (error) {
+          console.error('Error hiding floating window:', error)
+        }
+      }
+      
       this.isFocusMode = false
       this.currentBlockId = null
       this.sessionStartTime = null

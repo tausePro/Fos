@@ -73,7 +73,7 @@ Este plan de implementación convierte el MVP web existente de Felipe OS en una 
     - **Validates: Requirements 4.1, 4.2, 4.3, 4.4, 4.5**
 
 - [ ] 6. Implement Floating Window
-  - [ ] 6.1 Create floating window for focus mode
+  - [x] 6.1 Create floating window for focus mode
     - Design compact always-on-top window with session info
     - Show/hide floating window based on focus mode state
     - _Requirements: 5.1, 5.2, 5.4_

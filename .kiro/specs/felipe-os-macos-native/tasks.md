@@ -57,7 +57,7 @@ Este plan de implementación convierte el MVP web existente de Felipe OS en una 
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 5. Implement Global Shortcuts
-  - [ ] 5.1 Create GlobalShortcutManager
+  - [x] 5.1 Create GlobalShortcutManager
     - Register default global shortcuts (Cmd+Shift+F, Z, B, S)
     - Handle shortcut conflicts and provide fallbacks
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5_

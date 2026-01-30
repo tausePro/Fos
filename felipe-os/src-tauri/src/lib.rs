@@ -3,9 +3,11 @@ use std::sync::{Arc, Mutex};
 
 mod system_tray;
 mod notification_manager;
+mod global_shortcut_manager;
 
 pub use system_tray::{SystemTrayManager, FocusStatus, update_tray_status};
 pub use notification_manager::{NotificationManager, NotificationType, NotificationPriority, send_notification_command, request_notification_permissions, test_notification};
+pub use global_shortcut_manager::FelipeGlobalShortcutManager;
 
 // Comandos Tauri que expondremos al frontend
 #[tauri::command]
@@ -81,6 +83,7 @@ pub fn run() {
             .level(log::LevelFilter::Info)
             .build())
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .setup(|app| {
             // Configuración inicial de la aplicación
             log::info!("Felipe OS iniciando...");
@@ -120,6 +123,22 @@ pub fn run() {
                     }
                 }
             });
+            
+            // Inicializar Global Shortcut Manager
+            let shortcut_manager = FelipeGlobalShortcutManager::new();
+            
+            match shortcut_manager.register_all(app.handle()) {
+                Ok(()) => {
+                    log::info!("Global Shortcuts registrados correctamente");
+                    
+                    // Guardar el shortcut manager en el estado de la app
+                    app.manage(Arc::new(Mutex::new(shortcut_manager)));
+                }
+                Err(e) => {
+                    log::error!("Error registrando Global Shortcuts: {}", e);
+                    // Continuar sin shortcuts si hay error
+                }
+            }
             
             // Configurar la ventana principal
             if let Some(window) = app.get_webview_window("main") {
